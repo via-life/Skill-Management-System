@@ -1032,7 +1032,7 @@ async function viewFileContent(skill, path) {
   document.getElementById('fileContentBody').textContent = t('loading');
   openModal('fileContentModalOverlay');
   try {
-    const data = await api(`/api/skills/${encodeURIComponent(skill)}/files/${encodeURIComponent(path)}`);
+    const data = await api(`/api/skills/${encodeURIComponent(skill)}/files/${path.split('/').map(encodeURIComponent).join('/')}`);
     document.getElementById('fileContentBody').textContent = data.content || '(empty)';
   } catch(e) { document.getElementById('fileContentBody').textContent = 'Error: ' + e.message; }
 }

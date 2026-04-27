@@ -17,7 +17,7 @@ import threading
 from pathlib import Path
 from datetime import datetime, date, timedelta
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse, parse_qs, unquote
 
 PORT = 3000
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -318,7 +318,7 @@ class SkillHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         parsed = urlparse(self.path)
-        path = parsed.path.rstrip("/") or "/"
+        path = unquote(parsed.path).rstrip("/") or "/"
         params = parse_qs(parsed.query)
 
         if path == "/":
@@ -363,7 +363,7 @@ class SkillHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         parsed = urlparse(self.path)
-        path = parsed.path.rstrip("/")
+        path = unquote(parsed.path).rstrip("/")
         body = self._read_body()
 
         if path == "/api/skills":
@@ -385,7 +385,7 @@ class SkillHandler(BaseHTTPRequestHandler):
 
     def do_PUT(self):
         parsed = urlparse(self.path)
-        path = parsed.path.rstrip("/")
+        path = unquote(parsed.path).rstrip("/")
         body = self._read_body()
 
         # /api/skills/<name>/group
@@ -407,7 +407,7 @@ class SkillHandler(BaseHTTPRequestHandler):
 
     def do_DELETE(self):
         parsed = urlparse(self.path)
-        path = parsed.path.rstrip("/")
+        path = unquote(parsed.path).rstrip("/")
 
         # /api/trash (clear all)
         if path == "/api/trash":

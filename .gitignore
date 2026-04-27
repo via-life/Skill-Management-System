@@ -3,6 +3,7 @@ data/config.json
 data/stats.csv
 data/operation_log.json
 data/trash/
+data/.import_tmp/
 
 # Logs
 logs/*.log

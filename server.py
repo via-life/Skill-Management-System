@@ -13,6 +13,8 @@ import re
 import sys
 import shutil
 import random
+import subprocess
+import zipfile
 import threading
 from pathlib import Path
 from datetime import datetime, date, timedelta
@@ -271,6 +273,178 @@ def _update_skill_md_frontmatter(skill_dir: Path, name: str, description: str) -
 
 
 # =============================================================================
+# Import & Skills-tree helpers
+# =============================================================================
+
+IMPORT_TMP = DATA_DIR / ".import_tmp"
+
+
+def _classify_entry(entry_path: Path) -> str:
+    """Returns 'skill', 'pack', or 'ignore'."""
+    if not entry_path.is_dir():
+        return "ignore"
+    if (entry_path / "SKILL.md").exists():
+        return "skill"
+    for child in entry_path.iterdir():
+        if child.is_dir() and (child / "SKILL.md").exists():
+            return "pack"
+    return "ignore"
+
+
+def _get_skill_paths(config: dict) -> list:
+    """Return list of {path, type} from config."""
+    paths = []
+    # Global
+    sd = _get_skills_dir(config)
+    paths.append({"path": str(sd), "type": "global"})
+    # User-defined extra paths
+    for sp in config.get("meta", {}).get("skill_paths", []):
+        p = sp.get("path", "")
+        if p and p != str(sd):
+            paths.append({"path": p, "type": sp.get("type", "project")})
+    return paths
+
+
+def _build_skills_tree(config: dict) -> list:
+    """Build the 3-level tree: paths → entries (skill|pack) → sub-skills."""
+    all_stats = _read_stats()
+    # Aggregate stats by skill
+    count_map = {}
+    for row in all_stats:
+        sn = row.get("skill_name", "")
+        count_map[sn] = count_map.get(sn, 0) + row.get("count", 0)
+
+    skill_paths = _get_skill_paths(config)
+    result = []
+
+    for sp in skill_paths:
+        p = Path(sp["path"])
+        path_info = {
+            "path": sp["path"],
+            "type": sp["type"],
+            "label": f"{'Global' if sp['type']=='global' else 'Project'} ({sp['path']})",
+            "writable": os.access(str(p), os.W_OK) if p.exists() else False,
+            "exists": p.exists(),
+            "entries": [],
+        }
+
+        if not p.exists():
+            result.append(path_info)
+            continue
+
+        try:
+            entries_list = sorted(p.iterdir(), key=lambda x: x.name.lower())
+        except PermissionError:
+            result.append(path_info)
+            continue
+
+        for entry in entries_list:
+            if not entry.is_dir() or entry.name.startswith("."):
+                continue
+            kind = _classify_entry(entry)
+            if kind == "skill":
+                fm = _parse_skill_md_frontmatter(entry)
+                sk_config = config.get("skills", {}).get(entry.name, {})
+                path_info["entries"].append({
+                    "kind": "skill",
+                    "name": entry.name,
+                    "display_name": sk_config.get("display_name", fm.get("name", entry.name)),
+                    "description": sk_config.get("description", fm.get("description", "")),
+                    "enabled": sk_config.get("enabled", True),
+                    "tags": sk_config.get("tags", []),
+                    "total_count": count_map.get(entry.name, 0),
+                    "dir_path": str(entry),
+                })
+            elif kind == "pack":
+                pack_skills = []
+                for child in sorted(entry.iterdir(), key=lambda x: x.name.lower()):
+                    if child.is_dir() and (child / "SKILL.md").exists():
+                        cfm = _parse_skill_md_frontmatter(child)
+                        csk = config.get("skills", {}).get(child.name, {})
+                        pack_skills.append({
+                            "kind": "skill",
+                            "name": child.name,
+                            "display_name": csk.get("display_name", cfm.get("name", child.name)),
+                            "description": csk.get("description", cfm.get("description", "")),
+                            "enabled": csk.get("enabled", True),
+                            "tags": csk.get("tags", []),
+                            "total_count": count_map.get(child.name, 0),
+                            "dir_path": str(child),
+                        })
+                path_info["entries"].append({
+                    "kind": "pack",
+                    "name": entry.name,
+                    "dir_path": str(entry),
+                    "skills": pack_skills,
+                })
+        result.append(path_info)
+    return result
+
+
+def _is_git_url(url: str) -> bool:
+    return bool(re.match(r"^https?://(github\.com|gitlab\.com|gitee\.com|bitbucket\.org)/", url))
+
+
+def _is_local_path(url: str) -> bool:
+    # Windows absolute (C:\ or C:/) or Unix absolute (/)
+    if re.match(r"^[A-Za-z]:[/\\]", url) or url.startswith("/"):
+        return True
+    return False
+
+
+def _normalize_git_url(url: str) -> tuple:
+    """Return (clone_url, sub_path) from various Git URL formats."""
+    # GitHub/GitLab tree URL: https://github.com/user/repo/tree/branch/path
+    m = re.match(r"^(https?://[^/]+/[^/]+/[^/]+)/tree/[^/]+/(.+)$", url)
+    if m:
+        return m.group(1) + ".git", m.group(2)
+    # Plain repo URL
+    m = re.match(r"^(https?://[^/]+/[^/]+/[^/]+)(?:\.git)?/?$", url)
+    if m:
+        repo = m.group(1)
+        if not repo.endswith(".git"):
+            repo += ".git"
+        return repo, ""
+    return url, ""
+
+
+def _scan_skills_in_dir(base_dir: Path, root_dir: Path) -> list:
+    """Recursively find all SKILL.md entries under base_dir."""
+    skills = []
+    if not base_dir.exists():
+        return skills
+    # If base_dir itself has SKILL.md
+    if (base_dir / "SKILL.md").exists():
+        fm = _parse_skill_md_frontmatter(base_dir)
+        rel = str(base_dir.relative_to(root_dir)).replace("\\", "/")
+        files_count = sum(1 for _ in base_dir.rglob("*") if _.is_file())
+        total_size = sum(f.stat().st_size for f in base_dir.rglob("*") if f.is_file())
+        skills.append({
+            "name": fm.get("name", base_dir.name),
+            "description": fm.get("description", ""),
+            "path_in_source": rel if rel != "." else "",
+            "files_count": files_count,
+            "total_size": total_size,
+        })
+        return skills  # Don't recurse into a skill
+
+    # Check subdirectories
+    try:
+        for child in sorted(base_dir.iterdir(), key=lambda x: x.name.lower()):
+            if child.is_dir() and not child.name.startswith("."):
+                skills.extend(_scan_skills_in_dir(child, root_dir))
+    except PermissionError:
+        pass
+    return skills
+
+
+def _cleanup_import_tmp():
+    """Remove all temporary import directories."""
+    if IMPORT_TMP.exists():
+        shutil.rmtree(str(IMPORT_TMP), ignore_errors=True)
+
+
+# =============================================================================
 # HTTP Handler
 # =============================================================================
 
@@ -327,6 +501,10 @@ class SkillHandler(BaseHTTPRequestHandler):
         # /api/skills
         if path == "/api/skills":
             return self._handle_get_skills()
+        if path == "/api/skills-tree":
+            return self._handle_get_skills_tree()
+        if path == "/api/skills-dirs":
+            return self._handle_get_skills_dirs()
 
         # /api/skills/<name>
         m = re.match(r"^/api/skills/([^/]+)$", path)
@@ -370,6 +548,14 @@ class SkillHandler(BaseHTTPRequestHandler):
             return self._handle_create_skill(body)
         if path == "/api/groups":
             return self._handle_create_group(body)
+        if path == "/api/import/probe":
+            return self._handle_import_probe(body)
+        if path == "/api/import/install":
+            return self._handle_import_install(body)
+        if path == "/api/import/cleanup":
+            return self._handle_import_cleanup(body)
+        if path == "/api/skills-dirs":
+            return self._handle_add_skill_path(body)
 
         # /api/trash/<name>/restore
         m = re.match(r"^/api/trash/([^/]+)/restore$", path)
@@ -427,6 +613,11 @@ class SkillHandler(BaseHTTPRequestHandler):
         m = re.match(r"^/api/groups/([^/]+)$", path)
         if m:
             return self._handle_delete_group(m.group(1))
+
+        # /api/skills-dirs/<encoded_path>
+        m = re.match(r"^/api/skills-dirs/(.+)$", path)
+        if m:
+            return self._handle_remove_skill_path(m.group(1))
 
         self._send_error("Not found", 404)
 
@@ -926,6 +1117,8 @@ class SkillHandler(BaseHTTPRequestHandler):
                     self._undo_group_delete(config, tname, target.get("before", {}))
                 elif action == "group_assign":
                     self._undo_group_assign(config, tname, target.get("before", {}))
+                elif action == "import":
+                    self._undo_import(config, target.get("after", {}))
                 else:
                     return self._send_error(f"Cannot undo action '{action}'", 400)
             except Exception as e:
@@ -1058,6 +1251,253 @@ class SkillHandler(BaseHTTPRequestHandler):
             if name not in groups[old_group].get("skills", []):
                 groups[old_group].setdefault("skills", []).append(name)
 
+    def _undo_import(self, config, after):
+        """Undo import: delete all imported skill folders + remove from config."""
+        skill_names = after.get("skills", [])
+        skills_dir = _get_skills_dir(config)
+        for sn in skill_names:
+            # Remove file
+            sp = skills_dir / sn
+            if sp.exists():
+                shutil.rmtree(str(sp), ignore_errors=True)
+            # Remove from config
+            config.get("skills", {}).pop(sn, None)
+            for gdata in config.get("groups", {}).values():
+                if sn in gdata.get("skills", []):
+                    gdata["skills"].remove(sn)
+
+    # =========================================================================
+    # Skills Tree & Dirs
+    # =========================================================================
+
+    def _handle_get_skills_tree(self):
+        with _data_lock:
+            config = _read_config()
+        tree = _build_skills_tree(config)
+        self._send_json({"paths": tree})
+
+    def _handle_get_skills_dirs(self):
+        with _data_lock:
+            config = _read_config()
+        dirs = []
+        for sp in _get_skill_paths(config):
+            p = Path(sp["path"])
+            skill_count = 0
+            if p.exists():
+                for e in p.iterdir():
+                    if e.is_dir() and not e.name.startswith("."):
+                        skill_count += 1
+            dirs.append({
+                "path": sp["path"],
+                "type": sp["type"],
+                "label": f"{'Global' if sp['type']=='global' else 'Project'} ({sp['path']})",
+                "writable": os.access(str(p), os.W_OK) if p.exists() else False,
+                "exists": p.exists(),
+                "skill_count": skill_count,
+                "existing_skills": [e.name for e in p.iterdir() if e.is_dir() and not e.name.startswith(".")] if p.exists() else [],
+            })
+        self._send_json({"dirs": dirs})
+
+    def _handle_add_skill_path(self, body):
+        path_str = body.get("path", "").strip()
+        path_type = body.get("type", "project").strip()
+        if not path_str:
+            return self._send_error("path is required")
+        with _data_lock:
+            config = _read_config()
+            meta = config.setdefault("meta", {})
+            paths = meta.setdefault("skill_paths", [])
+            # Check not duplicate
+            for sp in paths:
+                if sp.get("path") == path_str:
+                    return self._send_error("Path already registered", 409)
+            # Also check not same as global
+            if path_str == meta.get("skills_dir", ""):
+                return self._send_error("This is already the global path", 409)
+            paths.append({"path": path_str, "type": path_type})
+            _write_config(config)
+        self._send_json({"message": f"Added path: {path_str}"}, 201)
+
+    def _handle_remove_skill_path(self, path_str):
+        with _data_lock:
+            config = _read_config()
+            meta = config.setdefault("meta", {})
+            paths = meta.setdefault("skill_paths", [])
+            new_paths = [sp for sp in paths if sp.get("path") != path_str]
+            if len(new_paths) == len(paths):
+                return self._send_error("Path not found", 404)
+            meta["skill_paths"] = new_paths
+            _write_config(config)
+        self._send_json({"message": f"Removed path: {path_str}"})
+
+    # =========================================================================
+    # Import
+    # =========================================================================
+
+    def _handle_import_probe(self, body):
+        url = body.get("url", "").strip()
+        if not url:
+            return self._send_error("url is required")
+
+        try:
+            IMPORT_TMP.mkdir(parents=True, exist_ok=True)
+            tmp_name = f"{random.randint(0,0xFFFFFF):06x}"
+            tmp_dir = IMPORT_TMP / tmp_name
+            tmp_dir.mkdir(parents=True, exist_ok=True)
+
+            source_type = "unknown"
+            scan_dir = tmp_dir
+
+            if _is_local_path(url):
+                lp = Path(url)
+                if not lp.exists():
+                    return self._send_error(f"Path not found: {url}", 404)
+                if lp.suffix.lower() == ".zip":
+                    source_type = "local_zip"
+                    with zipfile.ZipFile(str(lp), "r") as zf:
+                        zf.extractall(str(tmp_dir))
+                    scan_dir = tmp_dir
+                else:
+                    source_type = "local_dir"
+                    scan_dir = lp  # Use directly, don't copy
+
+            elif _is_git_url(url):
+                clone_url, sub_path = _normalize_git_url(url)
+                source_type = "git_repo" if not sub_path else "git_subdir"
+                repo_dir = tmp_dir / "_repo"
+                result = subprocess.run(
+                    ["git", "clone", "--depth", "1", clone_url, str(repo_dir)],
+                    capture_output=True, text=True, timeout=120
+                )
+                if result.returncode != 0:
+                    err = result.stderr.strip()[:200]
+                    return self._send_error(f"git clone failed: {err}", 500)
+                scan_dir = repo_dir / sub_path if sub_path else repo_dir
+            else:
+                return self._send_error(f"Unsupported URL format: {url}")
+
+            skills = _scan_skills_in_dir(scan_dir, scan_dir)
+
+            self._send_json({
+                "source": source_type,
+                "source_url": url,
+                "temp_dir": str(tmp_dir) if source_type != "local_dir" else "",
+                "scan_dir": str(scan_dir),
+                "skills": skills,
+            })
+
+        except subprocess.TimeoutExpired:
+            return self._send_error("git clone timed out (120s limit)", 504)
+        except Exception as e:
+            return self._send_error(f"Probe failed: {type(e).__name__}: {e}", 500)
+
+    def _handle_import_install(self, body):
+        scan_dir = body.get("scan_dir", "").strip()
+        selections = body.get("selections", [])
+        group = body.get("group", "ungrouped")
+
+        if not scan_dir or not selections:
+            return self._send_error("scan_dir and selections are required")
+
+        scan_path = Path(scan_dir)
+        if not scan_path.exists():
+            return self._send_error("Source directory not found. Please probe again.", 404)
+
+        installed = []
+        skipped = []
+
+        with _data_lock:
+            config = _read_config()
+            groups = config.setdefault("groups", {})
+            if group not in groups:
+                group = "ungrouped"
+
+            for sel in selections:
+                name = sel.get("name", "")
+                path_in_source = sel.get("path_in_source", "")
+                target_dir_str = sel.get("target_dir", "")
+                conflict_action = sel.get("conflict_action", "skip")
+
+                if not name or not target_dir_str:
+                    continue
+
+                target_dir = Path(target_dir_str)
+                target_dir.mkdir(parents=True, exist_ok=True)
+                dst = target_dir / name
+
+                # Determine source
+                if path_in_source:
+                    src = scan_path / path_in_source
+                else:
+                    src = scan_path
+
+                if not src.exists():
+                    skipped.append({"name": name, "reason": "source not found"})
+                    continue
+
+                # Conflict check
+                if dst.exists():
+                    if conflict_action == "skip":
+                        skipped.append({"name": name, "reason": "already exists"})
+                        continue
+                    elif conflict_action == "overwrite":
+                        shutil.rmtree(str(dst), ignore_errors=True)
+
+                # Copy
+                shutil.copytree(str(src), str(dst))
+
+                # Register in config
+                fm = _parse_skill_md_frontmatter(dst)
+                now = datetime.now().isoformat(timespec="seconds")
+                display_name = fm.get("name", name.replace("-", " ").replace("_", " ").title())
+                config.setdefault("skills", {})[name] = {
+                    "name": name,
+                    "display_name": display_name,
+                    "description": fm.get("description", ""),
+                    "enabled": True,
+                    "tags": [],
+                    "created_at": now,
+                    "updated_at": now,
+                }
+                if name not in groups[group].get("skills", []):
+                    groups[group].setdefault("skills", []).append(name)
+                installed.append(name)
+
+            _write_config(config)
+
+            if installed:
+                _add_operation("import", "skill", ", ".join(installed),
+                               group=group,
+                               after={"skills": installed,
+                                      "skipped": [s["name"] for s in skipped],
+                                      "source": body.get("source_url", scan_dir)})
+
+        # Cleanup temp dir if it was created by probe
+        temp_dir = body.get("temp_dir", "")
+        if temp_dir:
+            tp = Path(temp_dir)
+            if tp.exists() and str(IMPORT_TMP) in str(tp):
+                shutil.rmtree(str(tp), ignore_errors=True)
+
+        msg_parts = []
+        if installed:
+            msg_parts.append(f"Installed {len(installed)} skill(s)")
+        if skipped:
+            msg_parts.append(f"Skipped {len(skipped)}")
+        self._send_json({
+            "installed": installed,
+            "skipped": skipped,
+            "message": ", ".join(msg_parts) or "Nothing to install",
+        })
+
+    def _handle_import_cleanup(self, body):
+        temp_dir = body.get("temp_dir", "").strip()
+        if temp_dir:
+            tp = Path(temp_dir)
+            if tp.exists() and str(IMPORT_TMP) in str(tp):
+                shutil.rmtree(str(tp), ignore_errors=True)
+        self._send_json({"message": "Cleaned up"})
+
     # =========================================================================
     # Stats
     # =========================================================================
@@ -1129,6 +1569,9 @@ def main():
         config = _read_config()
         if _cleanup_trash(config):
             _write_config(config)
+
+    # Cleanup leftover import temp dirs
+    _cleanup_import_tmp()
 
     server = HTTPServer(("0.0.0.0", PORT), SkillHandler)
     print(f"\n  Skill Management System")

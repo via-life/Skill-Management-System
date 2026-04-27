@@ -341,8 +341,10 @@ tr:hover td { background: var(--bg-hover); }
     <div class="section-header">
       <h2>&#9881;&#65039; <span data-i18n="skillManagement">Skill Management</span></h2>
       <div class="section-actions">
+        <button class="btn btn-sm btn-primary" onclick="openImportModal()">&#128229; <span data-i18n="importSkill">Import</span></button>
         <button class="btn btn-sm btn-primary" onclick="openSkillModal()"><span data-i18n="newSkill">+ New Skill</span></button>
         <button class="btn btn-sm" onclick="openGroupModal()"><span data-i18n="newGroup">+ New Group</span></button>
+        <button class="btn-icon" onclick="openPathsModal()" title="Skill Paths" style="font-size:1.1rem">&#9881;</button>
       </div>
     </div>
     <div class="section-body" id="skillsBody"></div>
@@ -468,7 +470,60 @@ tr:hover td { background: var(--bg-hover); }
       <button class="btn btn-sm" onclick="closeModal('fileContentModalOverlay');openModal('fileTreeModalOverlay')" style="margin-bottom:12px">&#8592; Back</button>
       <pre class="file-content" id="fileContentBody"></pre>
     </div>
-    <div class="modal-footer"><button class="btn" onclick="closeModal('fileContentModalOverlay')">Close</button></div>
+    <div class="modal-footer"><button class="btn" onclick="closeModal('fileContentModalOverlay')" data-i18n="close">Close</button></div>
+  </div>
+</div>
+
+<!-- Import Modal -->
+<div class="modal-overlay" id="importModalOverlay" onclick="if(event.target===this){cancelImport();closeModal('importModalOverlay')}">
+  <div class="modal" style="max-width:620px">
+    <div class="modal-header">&#128229; <span data-i18n="importSkill">Import Skill</span></div>
+    <div class="modal-body" id="importBody">
+      <!-- Step 1: Enter URL -->
+      <div id="importStep1">
+        <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:4px" id="importStepLabel"></p>
+        <div class="form-group"><label data-i18n="urlOrPath">URL or Path</label><input id="importUrl" placeholder="https://github.com/user/repo"></div>
+        <p style="font-size:0.75rem;color:var(--text-muted)" data-i18n="supportedSources">Supported: GitHub/GitLab URL, local path, ZIP file</p>
+        <div id="importProbeStatus" style="margin-top:12px"></div>
+      </div>
+      <!-- Step 2: Select -->
+      <div id="importStep2" style="display:none">
+        <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:8px" id="importStep2Label"></p>
+        <div id="importSkillsList"></div>
+        <div class="form-group" style="margin-top:12px"><label data-i18n="installTo">Install to:</label><select id="importTargetDir"></select></div>
+        <div class="form-group"><label data-i18n="group">Group</label><select id="importGroup"></select></div>
+      </div>
+      <!-- Step 3: Result -->
+      <div id="importStep3" style="display:none">
+        <div id="importResult"></div>
+      </div>
+    </div>
+    <div class="modal-footer" id="importFooter">
+      <button class="btn" onclick="cancelImport();closeModal('importModalOverlay')" data-i18n="cancel">Cancel</button>
+      <button class="btn btn-primary" id="importProbeBtn" onclick="doProbe()" data-i18n="probe">Probe</button>
+      <button class="btn" id="importBackBtn" onclick="importGoBack()" style="display:none" data-i18n="back">Back</button>
+      <button class="btn btn-primary" id="importInstallBtn" onclick="doInstall()" style="display:none" data-i18n="installSelected">Install Selected</button>
+      <button class="btn btn-primary" id="importDoneBtn" onclick="closeModal('importModalOverlay');refreshData()" style="display:none" data-i18n="done">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- Skill Paths Modal -->
+<div class="modal-overlay" id="pathsModalOverlay" onclick="if(event.target===this)closeModal('pathsModalOverlay')">
+  <div class="modal" style="max-width:600px">
+    <div class="modal-header">&#128193; <span data-i18n="skillPaths">Skill Paths</span></div>
+    <div class="modal-body">
+      <div id="pathsList"></div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <input id="newPathInput" style="flex:1;padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-input);color:var(--text-primary);font-size:0.85rem" data-i18n-placeholder="pathPlaceholder">
+        <select id="newPathType" style="padding:6px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-input);color:var(--text-primary);font-size:0.85rem">
+          <option value="project">Project</option>
+          <option value="global">Global</option>
+        </select>
+        <button class="btn btn-sm btn-primary" onclick="addSkillPath()" data-i18n="addPath">Add Path</button>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn" onclick="closeModal('pathsModalOverlay')" data-i18n="close">Close</button></div>
   </div>
 </div>
 
@@ -547,6 +602,24 @@ const LANG = {
     deleteGroupConfirm:'Delete group "{0}"? Skills will move to Ungrouped.',
     clearTrashConfirm:'Permanently delete ALL items in trash? This cannot be undone.',
     dLeft:'{0}d left',
+    // Import
+    importSkill:'Import Skill', enterSource:'Enter Source', urlOrPath:'URL or Path',
+    probe:'Probe', probing:'Probing...', selectSkills:'Select Skills',
+    found:'Found {0} skill(s) in:', installTo:'Install to:', installSelected:'Install Selected',
+    complete:'Complete', successInstalled:'Successfully installed {0} skill(s)',
+    skippedCount:'Skipped {0}', alreadyExists:'Already exists!',
+    skip:'Skip', overwrite:'Overwrite', done:'Done',
+    supportedSources:'Supported: GitHub/GitLab URL, local path, ZIP file',
+    step:'Step {0}/{1}',
+    noSkillsFound:'No skills found in this source',
+    importInstalling:'Installing...',
+    // Skill Paths
+    skillPaths:'Skill Paths', addPath:'Add Path', removePath:'Remove',
+    pathType:'Type', global:'Global', project:'Project',
+    pathPlaceholder:'Enter path to skills directory',
+    pathAdded:'Path added', pathRemoved:'Path removed',
+    // Tree
+    skillPack:'Pack', skills:'skills',
   },
   zh: {
     totalSkills:'技能总数', today:'今日', thisWeek:'本周', mostUsed:'最常用',
@@ -584,6 +657,21 @@ const LANG = {
     deleteGroupConfirm:'删除分组 "{0}"？组内技能将移至"未分组"。',
     clearTrashConfirm:'永久删除回收站中所有项目？此操作不可撤销。',
     dLeft:'剩余{0}天',
+    importSkill:'导入技能', enterSource:'输入来源', urlOrPath:'URL 或路径',
+    probe:'探测', probing:'探测中...', selectSkills:'选择技能',
+    found:'在以下来源发现 {0} 个技能：', installTo:'安装到：', installSelected:'安装所选',
+    complete:'完成', successInstalled:'成功安装 {0} 个技能',
+    skippedCount:'跳过 {0} 个', alreadyExists:'已存在！',
+    skip:'跳过', overwrite:'覆盖', done:'完成',
+    supportedSources:'支持：GitHub/GitLab 链接、本地路径、ZIP 文件',
+    step:'步骤 {0}/{1}',
+    noSkillsFound:'未在此来源中找到技能',
+    importInstalling:'安装中...',
+    skillPaths:'技能路径', addPath:'添加路径', removePath:'移除',
+    pathType:'类型', global:'全局', project:'项目',
+    pathPlaceholder:'输入技能目录路径',
+    pathAdded:'路径已添加', pathRemoved:'路径已移除',
+    skillPack:'技能包', skills:'个技能',
   }
 };
 
@@ -730,7 +818,7 @@ async function refreshData() {
     document.getElementById('cardTop').textContent = topSkill;
 
     renderChart(cachedSummary);
-    renderSkills(skills, cachedGroups, cachedSummary);
+    renderSkillsTree();
     renderActivity(weekStats);
     renderTrash(trashItems);
     renderOps(ops);
@@ -1166,6 +1254,300 @@ async function undoOp(id) {
     showToast(t('opUndone'));
     refreshData();
   } catch(e) { showToast(e.message, 'error'); }
+}
+
+/* ========================================================================
+   Import Skill (3-step wizard)
+   ======================================================================== */
+let importProbeData = null;
+let importStep = 1;
+
+function openImportModal() {
+  importStep = 1; importProbeData = null;
+  document.getElementById('importUrl').value = '';
+  document.getElementById('importProbeStatus').innerHTML = '';
+  document.getElementById('importStep1').style.display = '';
+  document.getElementById('importStep2').style.display = 'none';
+  document.getElementById('importStep3').style.display = 'none';
+  document.getElementById('importProbeBtn').style.display = '';
+  document.getElementById('importBackBtn').style.display = 'none';
+  document.getElementById('importInstallBtn').style.display = 'none';
+  document.getElementById('importDoneBtn').style.display = 'none';
+  document.getElementById('importStepLabel').textContent = t('step', 1, 3) + ' — ' + t('enterSource');
+  openModal('importModalOverlay');
+  applyLang();
+}
+
+async function doProbe() {
+  const url = document.getElementById('importUrl').value.trim();
+  if(!url) { showToast(t('urlOrPath') + '!', 'error'); return; }
+  document.getElementById('importProbeStatus').innerHTML = `<span style="color:var(--accent)">${t('probing')}</span>`;
+  document.getElementById('importProbeBtn').disabled = true;
+  try {
+    const data = await api('/api/import/probe', {method:'POST', body:JSON.stringify({url})});
+    importProbeData = data;
+    if(!data.skills || !data.skills.length) {
+      document.getElementById('importProbeStatus').innerHTML = `<span style="color:var(--warning)">${t('noSkillsFound')}</span>`;
+      document.getElementById('importProbeBtn').disabled = false;
+      return;
+    }
+    showImportStep2(data);
+  } catch(e) {
+    document.getElementById('importProbeStatus').innerHTML = `<span style="color:var(--danger)">${esc(e.message)}</span>`;
+    document.getElementById('importProbeBtn').disabled = false;
+  }
+}
+
+async function showImportStep2(data) {
+  importStep = 2;
+  document.getElementById('importStep1').style.display = 'none';
+  document.getElementById('importStep2').style.display = '';
+  document.getElementById('importProbeBtn').style.display = 'none';
+  document.getElementById('importBackBtn').style.display = '';
+  document.getElementById('importInstallBtn').style.display = '';
+  document.getElementById('importStep2Label').textContent = t('found', data.skills.length);
+
+  // Load target dirs
+  let dirsData;
+  try { dirsData = await api('/api/skills-dirs'); } catch(e) { dirsData = {dirs:[]}; }
+  const sel = document.getElementById('importTargetDir');
+  sel.innerHTML = (dirsData.dirs||[]).map(d =>
+    `<option value="${esc(d.path)}" data-skills="${esc(JSON.stringify(d.existing_skills||[]))}">[${d.type==='global'?t('global'):t('project')}] ${esc(d.path)} (${d.skill_count})</option>`
+  ).join('');
+
+  // Load groups
+  const grpSel = document.getElementById('importGroup');
+  grpSel.innerHTML = Object.values(cachedGroups).sort((a,b)=>(a.order||0)-(b.order||0)).map(g =>
+    `<option value="${esc(g.name)}">${esc(g.display_name||g.name)}</option>`
+  ).join('');
+
+  renderImportSkills(data.skills);
+  sel.onchange = () => renderImportSkills(data.skills);
+}
+
+function renderImportSkills(skills) {
+  const el = document.getElementById('importSkillsList');
+  const selOpt = document.getElementById('importTargetDir').selectedOptions[0];
+  let existing = [];
+  try { existing = JSON.parse(selOpt?.getAttribute('data-skills')||'[]'); } catch(e) {}
+
+  el.innerHTML = skills.map((sk, i) => {
+    const conflict = existing.includes(sk.name);
+    return `<div style="padding:8px 0;border-bottom:1px solid var(--border)">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+        <input type="checkbox" class="import-sk-check" data-idx="${i}" checked>
+        <strong>${esc(sk.name)}</strong>
+        <span style="color:var(--text-muted);font-size:0.78rem">${sk.files_count} files &middot; ${fmtSize(sk.total_size||0)}</span>
+      </label>
+      <div style="font-size:0.78rem;color:var(--text-muted);margin-left:28px">${esc(sk.description||'(no description)')}</div>
+      ${conflict ? `<div style="margin-left:28px;margin-top:4px;font-size:0.78rem;color:var(--warning)">
+        &#9888;&#65039; ${t('alreadyExists')}
+        <label style="margin-left:8px"><input type="radio" name="conflict_${i}" value="skip" checked> ${t('skip')}</label>
+        <label style="margin-left:6px"><input type="radio" name="conflict_${i}" value="overwrite"> ${t('overwrite')}</label>
+      </div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function importGoBack() {
+  importStep = 1;
+  document.getElementById('importStep1').style.display = '';
+  document.getElementById('importStep2').style.display = 'none';
+  document.getElementById('importProbeBtn').style.display = '';
+  document.getElementById('importProbeBtn').disabled = false;
+  document.getElementById('importBackBtn').style.display = 'none';
+  document.getElementById('importInstallBtn').style.display = 'none';
+  document.getElementById('importProbeStatus').innerHTML = '';
+  document.getElementById('importStepLabel').textContent = t('step', 1, 3) + ' — ' + t('enterSource');
+}
+
+async function doInstall() {
+  if(!importProbeData) return;
+  const targetDir = document.getElementById('importTargetDir').value;
+  const group = document.getElementById('importGroup').value;
+  const checks = document.querySelectorAll('.import-sk-check');
+  const selections = [];
+
+  checks.forEach((cb, i) => {
+    if(!cb.checked) return;
+    const sk = importProbeData.skills[i];
+    const conflictRadio = document.querySelector(`input[name="conflict_${i}"]:checked`);
+    selections.push({
+      name: sk.name,
+      path_in_source: sk.path_in_source,
+      target_dir: targetDir,
+      conflict_action: conflictRadio ? conflictRadio.value : 'skip',
+    });
+  });
+
+  if(!selections.length) { showToast(t('noSkillsFound'), 'error'); return; }
+  document.getElementById('importInstallBtn').disabled = true;
+  document.getElementById('importInstallBtn').textContent = t('importInstalling');
+
+  try {
+    const result = await api('/api/import/install', {method:'POST', body:JSON.stringify({
+      scan_dir: importProbeData.scan_dir,
+      temp_dir: importProbeData.temp_dir,
+      source_url: importProbeData.source_url,
+      selections, group
+    })});
+
+    // Step 3
+    importStep = 3;
+    document.getElementById('importStep2').style.display = 'none';
+    document.getElementById('importStep3').style.display = '';
+    document.getElementById('importBackBtn').style.display = 'none';
+    document.getElementById('importInstallBtn').style.display = 'none';
+    document.getElementById('importDoneBtn').style.display = '';
+
+    let html = '';
+    if(result.installed && result.installed.length) {
+      html += `<p style="color:var(--success);font-weight:600;margin-bottom:8px">&#10004; ${t('successInstalled', result.installed.length)}</p>`;
+      html += result.installed.map(n => `<div style="font-size:0.85rem;padding:2px 0">&bull; ${esc(n)} &rarr; ${esc(targetDir)}</div>`).join('');
+    }
+    if(result.skipped && result.skipped.length) {
+      html += `<p style="color:var(--warning);margin-top:8px;font-size:0.85rem">${t('skippedCount', result.skipped.length)}</p>`;
+    }
+    document.getElementById('importResult').innerHTML = html;
+    refreshData();
+  } catch(e) {
+    showToast(e.message, 'error');
+    document.getElementById('importInstallBtn').disabled = false;
+    document.getElementById('importInstallBtn').textContent = t('installSelected');
+  }
+}
+
+function cancelImport() {
+  if(importProbeData && importProbeData.temp_dir) {
+    api('/api/import/cleanup', {method:'POST', body:JSON.stringify({temp_dir:importProbeData.temp_dir})}).catch(()=>{});
+  }
+  importProbeData = null;
+}
+
+/* ========================================================================
+   Skill Paths Modal
+   ======================================================================== */
+async function openPathsModal() {
+  openModal('pathsModalOverlay');
+  await renderPathsList();
+}
+
+async function renderPathsList() {
+  const el = document.getElementById('pathsList');
+  el.innerHTML = t('loading');
+  try {
+    const data = await api('/api/skills-dirs');
+    const dirs = data.dirs || [];
+    if(!dirs.length) { el.innerHTML = '<div class="empty-state">No paths</div>'; return; }
+    el.innerHTML = dirs.map(d => `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+      <div>
+        <span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:0.72rem;font-weight:600;background:${d.type==='global'?'var(--accent-soft)':'rgba(63,185,80,0.15)'};color:${d.type==='global'?'var(--accent)':'var(--success)'}">${d.type==='global'?t('global'):t('project')}</span>
+        <span style="font-size:0.85rem;margin-left:8px">${esc(d.path)}</span>
+        <span style="font-size:0.75rem;color:var(--text-muted);margin-left:8px">(${d.skill_count} ${t('skills')})</span>
+      </div>
+      ${d.type!=='global' ? `<button class="btn btn-sm btn-danger" onclick="removeSkillPath('${esc(d.path)}')">${t('removePath')}</button>` : ''}
+    </div>`).join('');
+  } catch(e) { el.innerHTML = `<div class="empty-state">${esc(e.message)}</div>`; }
+}
+
+async function addSkillPath() {
+  const pathVal = document.getElementById('newPathInput').value.trim();
+  const typeVal = document.getElementById('newPathType').value;
+  if(!pathVal) return;
+  try {
+    await api('/api/skills-dirs', {method:'POST', body:JSON.stringify({path:pathVal, type:typeVal})});
+    showToast(t('pathAdded'));
+    document.getElementById('newPathInput').value = '';
+    await renderPathsList();
+    refreshData();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+async function removeSkillPath(pathStr) {
+  try {
+    await api(`/api/skills-dirs/${encodeURIComponent(pathStr)}`, {method:'DELETE'});
+    showToast(t('pathRemoved'));
+    await renderPathsList();
+    refreshData();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+/* ========================================================================
+   Skills Tree (3-level hierarchy)
+   ======================================================================== */
+async function renderSkillsTree() {
+  const el = document.getElementById('skillsBody');
+  try {
+    const data = await api('/api/skills-tree');
+    const paths = data.paths || [];
+    if(!paths.length || paths.every(p => !p.entries.length)) {
+      el.innerHTML = '<div class="empty-state">'+t('noSkillsYet')+'</div>';
+      return;
+    }
+    el.innerHTML = paths.map(pi => {
+      const badge = pi.type === 'global'
+        ? `<span style="display:inline-block;padding:1px 8px;border-radius:10px;font-size:0.7rem;font-weight:600;background:var(--accent-soft);color:var(--accent)">${t('global')}</span>`
+        : `<span style="display:inline-block;padding:1px 8px;border-radius:10px;font-size:0.7rem;font-weight:600;background:rgba(63,185,80,0.15);color:var(--success)">${t('project')}</span>`;
+
+      const entries = pi.entries.map(e => {
+        if(e.kind === 'skill') {
+          return renderSkillRow(e);
+        } else if(e.kind === 'pack') {
+          return `<div class="group-block open" style="margin:4px 0 4px 12px">
+            <div class="group-header" onclick="this.parentElement.classList.toggle('open')" style="padding:6px 12px">
+              <div class="group-title"><span class="chevron">&#9654;</span> &#128193; ${esc(e.name)} <span class="group-count">(${e.skills.length} ${t('skills')})</span></div>
+              <div class="group-actions" onclick="event.stopPropagation()">
+                <button class="btn-icon" title="Files" onclick="viewFilesPath('${esc(e.dir_path)}','${esc(e.name)}')">&#128194;</button>
+              </div>
+            </div>
+            <div class="group-body">
+              ${e.skills.map(sk => renderSkillRow(sk)).join('')}
+            </div>
+          </div>`;
+        }
+        return '';
+      }).join('');
+
+      return `<div class="group-block open">
+        <div class="group-header" onclick="this.parentElement.classList.toggle('open')">
+          <div class="group-title">
+            <span class="chevron">&#9654;</span> ${badge}
+            <span style="font-size:0.82rem">${esc(pi.path)}</span>
+            <span class="group-count">(${pi.entries.length})</span>
+          </div>
+        </div>
+        <div class="group-body">${entries || '<div class="empty-state">'+t('noSkillsYet')+'</div>'}</div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    el.innerHTML = '<div class="empty-state">'+esc(e.message)+'</div>';
+  }
+}
+
+function renderSkillRow(sk) {
+  return `<div class="skill-row">
+    <div><span class="skill-name">${esc(sk.name)}</span></div>
+    <div class="skill-display">${esc(sk.display_name||'')}</div>
+    <div class="skill-count">${sk.total_count||0}</div>
+    <div class="skill-actions">
+      <button class="btn-icon" title="Files" onclick="viewFiles('${esc(sk.name)}')">&#128194;</button>
+      <button class="btn-icon" title="Edit" onclick="openEditSkill('${esc(sk.name)}')">&#9998;</button>
+      <button class="btn-icon" title="Delete" onclick="deleteSkill('${esc(sk.name)}')" style="color:var(--danger)">&#128465;</button>
+    </div>
+  </div>`;
+}
+
+function viewFilesPath(dirPath, name) {
+  currentFileTreeSkill = name;
+  document.getElementById('fileTreeTitle').textContent = '📂 ' + name + ' ' + t('fileStructure');
+  document.getElementById('fileTreePath').textContent = dirPath;
+  document.getElementById('fileTreeContent').innerHTML = t('loading');
+  openModal('fileTreeModalOverlay');
+  api(`/api/skills/${encodeURIComponent(name)}/files`).then(data => {
+    document.getElementById('fileTreeContent').innerHTML = renderTree(data.tree || [], '');
+  }).catch(e => {
+    document.getElementById('fileTreeContent').innerHTML = '<div class="empty-state">'+esc(e.message)+'</div>';
+  });
 }
 
 /* ========================================================================

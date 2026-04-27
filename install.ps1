@@ -37,9 +37,10 @@ $SKILLS_DIR = "$CLAUDE_DIR\skills"
 Write-Host "  [..] Project: $PROJECT_ROOT"
 Write-Host "  [..] Claude config: $CLAUDE_DIR"
 
-# Step 3: Use Python for JSON operations (avoids PowerShell JSON type issues)
-$installScript = @"
-import json, sys, os, re
+# Step 3: Write Python installer to temp file and execute
+$pyScript = "$PROJECT_ROOT\_install_helper.py"
+Set-Content -Path $pyScript -Encoding UTF8 -Value @'
+import json, sys, os
 from pathlib import Path
 from datetime import datetime
 
@@ -56,61 +57,60 @@ p.parent.mkdir(parents=True, exist_ok=True)
 settings = {}
 if p.exists():
     try:
-        settings = json.loads(p.read_text('utf-8'))
-    except:
+        settings = json.loads(p.read_text("utf-8"))
+    except Exception:
         settings = {}
 
-hooks = settings.setdefault('hooks', {})
-ptu = hooks.setdefault('PreToolUse', [])
+hooks = settings.setdefault("hooks", {})
+ptu = hooks.setdefault("PreToolUse", [])
 
-# Idempotent check
 already = False
 for group in ptu:
-    if group.get('matcher') == 'Skill':
-        for h in group.get('hooks', []):
-            if 'skill_tracker.py' in h.get('command', ''):
+    if group.get("matcher") == "Skill":
+        for h in group.get("hooks", []):
+            if "skill_tracker.py" in h.get("command", ""):
                 already = True
                 break
 
 if not already:
-    hook_cmd = f'{python_cmd} "{hook_script}"'
+    hook_cmd = python_cmd + ' "' + hook_script + '"'
     ptu.append({
-        'matcher': 'Skill',
-        'hooks': [{'type': 'command', 'command': hook_cmd}]
+        "matcher": "Skill",
+        "hooks": [{"type": "command", "command": hook_cmd}]
     })
-    p.write_text(json.dumps(settings, indent=2, ensure_ascii=False), 'utf-8')
-    print('  [OK] Hook registered in settings.json')
+    p.write_text(json.dumps(settings, indent=2, ensure_ascii=False), "utf-8")
+    print("  [OK] Hook registered in settings.json")
 else:
-    print('  [OK] Hook already registered, skipped')
+    print("  [OK] Hook already registered, skipped")
 
 # --- Init data files ---
-data_dir = Path(project_root) / 'data'
+data_dir = Path(project_root) / "data"
 data_dir.mkdir(parents=True, exist_ok=True)
-(Path(project_root) / 'logs').mkdir(parents=True, exist_ok=True)
-(data_dir / 'trash').mkdir(parents=True, exist_ok=True)
+(Path(project_root) / "logs").mkdir(parents=True, exist_ok=True)
+(data_dir / "trash").mkdir(parents=True, exist_ok=True)
 
-config_file = data_dir / 'config.json'
-stats_file = data_dir / 'stats.csv'
-oplog_file = data_dir / 'operation_log.json'
+config_file = data_dir / "config.json"
+stats_file = data_dir / "stats.csv"
+oplog_file = data_dir / "operation_log.json"
 
-now = datetime.now().isoformat(timespec='seconds')
+now = datetime.now().isoformat(timespec="seconds")
 
 if not config_file.exists():
     config = {
-        'version': '1.0',
-        'meta': {'skills_dir': skills_dir, 'installed_at': now},
-        'groups': {
-            'ungrouped': {
-                'name': 'ungrouped', 'display_name': 'Ungrouped',
-                'color': '#888888', 'order': 999, 'skills': []
+        "version": "1.0",
+        "meta": {"skills_dir": skills_dir, "installed_at": now},
+        "groups": {
+            "ungrouped": {
+                "name": "ungrouped", "display_name": "Ungrouped",
+                "color": "#888888", "order": 999, "skills": []
             }
         },
-        'skills': {},
-        'trash': {}
+        "skills": {},
+        "trash": {}
     }
 else:
-    config = json.loads(config_file.read_text('utf-8'))
-    config.setdefault('meta', {})['skills_dir'] = skills_dir
+    config = json.loads(config_file.read_text("utf-8"))
+    config.setdefault("meta", {})["skills_dir"] = skills_dir
 
 # --- Scan existing skills ---
 skills_path = Path(skills_dir)
@@ -119,59 +119,61 @@ if skills_path.exists():
         if not entry.is_dir():
             continue
         sname = entry.name
-        if sname.startswith('.'):
+        if sname.startswith("."):
             continue
-        if sname in config.get('skills', {}) or sname in config.get('trash', {}):
+        if sname in config.get("skills", {}) or sname in config.get("trash", {}):
             continue
 
-        # Parse SKILL.md frontmatter
-        skill_md = entry / 'SKILL.md'
-        desc = ''
+        skill_md = entry / "SKILL.md"
+        desc = ""
         if skill_md.exists():
             try:
-                content = skill_md.read_text('utf-8')
-                if content.startswith('---'):
-                    end = content.find('---', 3)
+                content = skill_md.read_text("utf-8")
+                if content.startswith("---"):
+                    end = content.find("---", 3)
                     if end > 0:
                         fm = content[3:end]
                         for line in fm.strip().splitlines():
-                            if ':' in line:
-                                k, _, v = line.partition(':')
-                                if k.strip() == 'description':
-                                    desc = v.strip().strip('\'"')
-            except:
+                            if ":" in line:
+                                k, _, v = line.partition(":")
+                                if k.strip() == "description":
+                                    desc = v.strip().strip("'\"")
+            except Exception:
                 pass
 
-        display_name = sname.replace('-', ' ').replace('_', ' ').title()
-        config.setdefault('skills', {})[sname] = {
-            'name': sname,
-            'display_name': display_name,
-            'description': desc,
-            'enabled': True,
-            'tags': [],
-            'created_at': now,
-            'updated_at': now
+        display_name = sname.replace("-", " ").replace("_", " ").title()
+        config.setdefault("skills", {})[sname] = {
+            "name": sname,
+            "display_name": display_name,
+            "description": desc,
+            "enabled": True,
+            "tags": [],
+            "created_at": now,
+            "updated_at": now
         }
-        ungrouped = config['groups'].setdefault('ungrouped', {
-            'name': 'ungrouped', 'display_name': 'Ungrouped',
-            'color': '#888888', 'order': 999, 'skills': []
+        ungrouped = config["groups"].setdefault("ungrouped", {
+            "name": "ungrouped", "display_name": "Ungrouped",
+            "color": "#888888", "order": 999, "skills": []
         })
-        if sname not in ungrouped.get('skills', []):
-            ungrouped.setdefault('skills', []).append(sname)
-        print(f'  [OK] Found skill: {sname}')
+        if sname not in ungrouped.get("skills", []):
+            ungrouped.setdefault("skills", []).append(sname)
+        print("  [OK] Found skill: " + sname)
 
-config_file.write_text(json.dumps(config, indent=2, ensure_ascii=False), 'utf-8')
+config_file.write_text(json.dumps(config, indent=2, ensure_ascii=False), "utf-8")
 
 if not stats_file.exists():
-    stats_file.write_text('date,skill_name,count\n', 'utf-8')
+    stats_file.write_text("date,skill_name,count\n", "utf-8")
 
 if not oplog_file.exists():
-    oplog_file.write_text('[]', 'utf-8')
+    oplog_file.write_text("[]", "utf-8")
 
-print('  [OK] Data files initialized')
-"@
+print("  [OK] Data files initialized")
+'@
 
-& $PYTHON -c $installScript $PROJECT_ROOT $SETTINGS $HOOK_SCRIPT $PYTHON $SKILLS_DIR
+& $PYTHON $pyScript $PROJECT_ROOT $SETTINGS $HOOK_SCRIPT $PYTHON $SKILLS_DIR
+
+# Cleanup temp file
+Remove-Item $pyScript -ErrorAction SilentlyContinue
 
 Write-Host ""
 Write-Host "  Installation complete!" -ForegroundColor Green

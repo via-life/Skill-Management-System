@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Skill Management System</title>
+<script src="https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.min.js"></script>
 <style>
 /* ========================================================================
    CSS Reset & Variables
@@ -76,12 +78,13 @@ body {
 .target-cursor-wrapper.hovering .corner-bl { transform: translate(-120%, 20%); }
 .target-cursor-wrapper.hovering .target-cursor-dot { width: 6px; height: 6px; }
 
-/* ── Lanyard Canvas ─────────────────────────────────────────────────── */
-#lanyardCanvas {
-  position: fixed; top: 0; right: 24px; z-index: 150;
-  width: 60px; height: 200px; cursor: grab;
+/* ── Lanyard 3D ─────────────────────────────────────────────────────── */
+#lanyardContainer {
+  position: fixed; top: 0; right: 0; z-index: 150;
+  width: 220px; height: 320px; pointer-events: auto;
 }
-#lanyardCanvas:active { cursor: grabbing; }
+#lanyardContainer canvas { cursor: grab; }
+#lanyardContainer canvas:active { cursor: grabbing; }
 
 /* ── AnimatedList items ─────────────────────────────────────────────── */
 .animated-item {
@@ -347,8 +350,8 @@ tr:hover td { background: var(--bg-hover); }
 <!-- MagnetLines Background -->
 <div id="magnetBg"></div>
 
-<!-- Lanyard Pull-to-Refresh -->
-<canvas id="lanyardCanvas" width="120" height="400"></canvas>
+<!-- Lanyard 3D Pull-to-Toggle-Theme -->
+<div id="lanyardContainer"></div>
 
 <!-- Navbar -->
 <nav class="navbar">
@@ -1676,124 +1679,193 @@ function initTargetCursor() {
 }
 
 /* ========================================================================
-   Lanyard Pull-to-Refresh (2D Verlet rope physics)
+   Lanyard 3D (Three.js + Cannon-es rope physics)
    ======================================================================== */
 function initLanyard() {
-  const canvas = document.getElementById('lanyardCanvas');
-  if(!canvas) return;
-  const ctx = canvas.getContext('2d');
-  const W = canvas.width, H = canvas.height;
-  const segments = 12, segLen = 14;
-  const gravity = 0.4, damping = 0.98, iterations = 5;
-  const anchorX = W / 2, anchorY = 8;
-  const pullThreshold = 80;
+  const container = document.getElementById('lanyardContainer');
+  if(!container || typeof THREE === 'undefined' || typeof CANNON === 'undefined') return;
 
-  // Verlet points: {x, y, ox, oy, pinned}
-  const points = [];
-  for(let i = 0; i <= segments; i++) {
-    points.push({ x: anchorX, y: anchorY + i * segLen, ox: anchorX, oy: anchorY + i * segLen, pinned: i === 0 });
+  const W = 220, H = 320;
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(25, W / H, 0.1, 100);
+  camera.position.set(0, 0, 18);
+  camera.lookAt(0, 0, 0);
+
+  const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+  renderer.setSize(W, H);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setClearColor(0x000000, 0);
+  container.appendChild(renderer.domElement);
+
+  // Lighting
+  scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+  const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+  dirLight.position.set(2, 4, 6);
+  scene.add(dirLight);
+
+  // Physics world
+  const world = new CANNON.World({ gravity: new CANNON.Vec3(0, -15, 0) });
+  world.solver.iterations = 10;
+
+  // Rope parameters
+  const segCount = 10;
+  const segLen = 0.5;
+  const anchorY = 4.5;
+  const ropeRadius = 0.04;
+  const ballRadius = 0.35;
+
+  // Create rope bodies
+  const ropeBodies = [];
+  const ropeShape = new CANNON.Sphere(ropeRadius);
+  for(let i = 0; i <= segCount; i++) {
+    const body = new CANNON.Body({
+      mass: i === 0 ? 0 : 0.3,  // first is fixed
+      position: new CANNON.Vec3(0, anchorY - i * segLen, 0),
+      linearDamping: 0.5,
+      angularDamping: 0.99,
+    });
+    body.addShape(ropeShape);
+    world.addBody(body);
+    ropeBodies.push(body);
   }
 
-  let dragging = false, dragOffset = {x:0, y:0}, pullDist = 0;
-  const ballRadius = 8;
-  const lastPt = () => points[points.length - 1];
+  // Distance constraints (rope links)
+  for(let i = 0; i < segCount; i++) {
+    const c = new CANNON.DistanceConstraint(ropeBodies[i], ropeBodies[i+1], segLen);
+    c.collideConnected = false;
+    world.addConstraint(c);
+  }
 
-  canvas.addEventListener('mousedown', e => {
-    const rect = canvas.getBoundingClientRect();
-    const mx = (e.clientX - rect.left) * (W / rect.width);
-    const my = (e.clientY - rect.top) * (H / rect.height);
-    const lp = lastPt();
-    const dist = Math.hypot(mx - lp.x, my - lp.y);
-    if(dist < ballRadius + 15) {
+  // Bottom ball body
+  const ballBody = new CANNON.Body({
+    mass: 1.5,
+    position: new CANNON.Vec3(0, anchorY - segCount * segLen - ballRadius, 0),
+    linearDamping: 0.4,
+  });
+  ballBody.addShape(new CANNON.Sphere(ballRadius));
+  world.addBody(ballBody);
+
+  // Connect last rope segment to ball
+  const ballConstraint = new CANNON.DistanceConstraint(
+    ropeBodies[segCount], ballBody, ballRadius + ropeRadius
+  );
+  world.addConstraint(ballConstraint);
+
+  // Rope visual - smooth tube
+  const curveObj = new THREE.CatmullRomCurve3(
+    ropeBodies.map(b => new THREE.Vector3(b.position.x, b.position.y, b.position.z))
+  );
+  let tubeGeo = new THREE.TubeGeometry(curveObj, segCount * 4, ropeRadius * 1.5, 6, false);
+  const ropeMat = new THREE.MeshPhongMaterial({ color: 0x6c63ff, shininess: 40 });
+  const ropeMesh = new THREE.Mesh(tubeGeo, ropeMat);
+  scene.add(ropeMesh);
+
+  // Anchor pin
+  const pinGeo = new THREE.SphereGeometry(0.08, 12, 12);
+  const pinMat = new THREE.MeshPhongMaterial({ color: 0x6c63ff });
+  const pinMesh = new THREE.Mesh(pinGeo, pinMat);
+  pinMesh.position.set(0, anchorY, 0);
+  scene.add(pinMesh);
+
+  // Ball visual
+  const ballGeo = new THREE.SphereGeometry(ballRadius, 24, 24);
+  const ballMat = new THREE.MeshPhysicalMaterial({
+    color: 0x6c63ff, metalness: 0.5, roughness: 0.3, clearcoat: 0.8,
+  });
+  const ballMesh = new THREE.Mesh(ballGeo, ballMat);
+  scene.add(ballMesh);
+
+  // Ring on ball
+  const ringGeo = new THREE.TorusGeometry(ballRadius * 0.6, 0.03, 8, 24);
+  const ringMat = new THREE.MeshPhongMaterial({ color: 0x8b7fff });
+  const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+  scene.add(ringMesh);
+
+  // Drag state
+  let dragging = false;
+  let dragPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+  let dragOffset = new THREE.Vector3();
+  let restY = ballBody.position.y;
+  const pullThreshold = 2.5;
+  const raycaster = new THREE.Raycaster();
+  const mouse = new THREE.Vector2();
+
+  function getMousePos(e) {
+    const rect = renderer.domElement.getBoundingClientRect();
+    mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+  }
+
+  renderer.domElement.addEventListener('pointerdown', e => {
+    getMousePos(e);
+    raycaster.setFromCamera(mouse, camera);
+    const hits = raycaster.intersectObject(ballMesh);
+    if(hits.length) {
       dragging = true;
-      dragOffset.x = lp.x - mx;
-      dragOffset.y = lp.y - my;
-      canvas.style.cursor = 'grabbing';
+      ballBody.mass = 0; ballBody.updateMassProperties();
+      e.target.setPointerCapture(e.pointerId);
+      const pt = new THREE.Vector3();
+      raycaster.ray.intersectPlane(dragPlane, pt);
+      dragOffset.copy(ballBody.position).sub(new CANNON.Vec3(pt.x, pt.y, pt.z));
     }
   });
-  document.addEventListener('mousemove', e => {
+
+  renderer.domElement.addEventListener('pointermove', e => {
     if(!dragging) return;
-    const rect = canvas.getBoundingClientRect();
-    const mx = (e.clientX - rect.left) * (W / rect.width);
-    const my = (e.clientY - rect.top) * (H / rect.height);
-    const lp = lastPt();
-    lp.x = mx + dragOffset.x;
-    lp.y = my + dragOffset.y;
-    lp.ox = lp.x; lp.oy = lp.y;
+    getMousePos(e);
+    raycaster.setFromCamera(mouse, camera);
+    const pt = new THREE.Vector3();
+    raycaster.ray.intersectPlane(dragPlane, pt);
+    ballBody.position.set(pt.x + dragOffset.x, pt.y + dragOffset.y, 0);
+    ballBody.velocity.set(0, 0, 0);
   });
-  document.addEventListener('mouseup', () => {
+
+  const onPointerUp = () => {
     if(!dragging) return;
     dragging = false;
-    canvas.style.cursor = 'grab';
-    pullDist = lastPt().y - (anchorY + segments * segLen);
-    if(pullDist > pullThreshold) {
+    ballBody.mass = 1.5; ballBody.updateMassProperties();
+    // Check pull distance
+    if(restY - ballBody.position.y > pullThreshold) {
       toggleTheme();
     }
-  });
+  };
+  renderer.domElement.addEventListener('pointerup', onPointerUp);
+  renderer.domElement.addEventListener('pointercancel', onPointerUp);
 
-  function simulate() {
-    for(const p of points) {
-      if(p.pinned) continue;
-      if(dragging && p === lastPt()) continue;
-      const vx = (p.x - p.ox) * damping;
-      const vy = (p.y - p.oy) * damping;
-      p.ox = p.x; p.oy = p.y;
-      p.x += vx; p.y += vy + gravity;
-    }
-    for(let iter = 0; iter < iterations; iter++) {
-      for(let i = 0; i < segments; i++) {
-        const a = points[i], b = points[i+1];
-        const dx = b.x - a.x, dy = b.y - a.y;
-        const dist = Math.sqrt(dx*dx + dy*dy) || 0.001;
-        const diff = (segLen - dist) / dist * 0.5;
-        const ox = dx * diff, oy = dy * diff;
-        if(!a.pinned) { a.x -= ox; a.y -= oy; }
-        if(!b.pinned && !(dragging && b === lastPt())) { b.x += ox; b.y += oy; }
-      }
-    }
-  }
-
-  function draw() {
+  // Theme sync
+  function syncTheme() {
     const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
-    ctx.clearRect(0, 0, W, H);
-
-    // Rope
-    ctx.beginPath();
-    ctx.moveTo(points[0].x, points[0].y);
-    for(let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
-    ctx.strokeStyle = isDark ? 'rgba(108,99,255,0.6)' : 'rgba(90,82,213,0.5)';
-    ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.stroke();
-
-    // Anchor dot
-    ctx.beginPath(); ctx.arc(anchorX, anchorY, 3, 0, Math.PI*2);
-    ctx.fillStyle = isDark ? 'rgba(108,99,255,0.8)' : 'rgba(90,82,213,0.7)'; ctx.fill();
-
-    // Ball
-    const lp = lastPt();
-    ctx.beginPath(); ctx.arc(lp.x, lp.y, ballRadius, 0, Math.PI*2);
-    const grad = ctx.createRadialGradient(lp.x-2, lp.y-2, 1, lp.x, lp.y, ballRadius);
-    grad.addColorStop(0, isDark ? '#8b7fff' : '#7b6bef');
-    grad.addColorStop(1, isDark ? '#5a4fd4' : '#4a3fc4');
-    ctx.fillStyle = grad; ctx.fill();
-    ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)';
-    ctx.lineWidth = 1; ctx.stroke();
-
-    // Pull indicator
-    const currentPull = lp.y - (anchorY + segments * segLen);
-    if(dragging && currentPull > 20) {
-      const alpha = Math.min(currentPull / pullThreshold, 1) * 0.6;
-      ctx.fillStyle = `rgba(108,99,255,${alpha})`;
-      ctx.font = '10px sans-serif'; ctx.textAlign = 'center';
-      const icon = document.documentElement.getAttribute('data-theme') === 'dark' ? '☀' : '🌙';
-      ctx.fillText(icon, lp.x, lp.y + ballRadius + 14);
-    }
+    const c = isDark ? 0x6c63ff : 0x5a52d5;
+    ropeMat.color.setHex(c);
+    ballMat.color.setHex(c);
+    pinMat.color.setHex(c);
+    ringMat.color.setHex(isDark ? 0x8b7fff : 0x7b6bef);
   }
 
-  function loop() {
-    simulate(); draw();
-    requestAnimationFrame(loop);
+  // Animation loop
+  const fixedStep = 1 / 60;
+  function animate() {
+    requestAnimationFrame(animate);
+    world.step(fixedStep);
+
+    // Update curve
+    const pts = ropeBodies.map(b => new THREE.Vector3(b.position.x, b.position.y, b.position.z));
+    const newCurve = new THREE.CatmullRomCurve3(pts);
+    ropeMesh.geometry.dispose();
+    ropeMesh.geometry = new THREE.TubeGeometry(newCurve, segCount * 4, ropeRadius * 1.5, 6, false);
+
+    // Update ball visual
+    ballMesh.position.set(ballBody.position.x, ballBody.position.y, ballBody.position.z);
+    ballMesh.quaternion.set(ballBody.quaternion.x, ballBody.quaternion.y, ballBody.quaternion.z, ballBody.quaternion.w);
+
+    // Ring follows ball
+    ringMesh.position.copy(ballMesh.position);
+    ringMesh.rotation.x = Math.PI / 2;
+
+    syncTheme();
+    renderer.render(scene, camera);
   }
-  loop();
+  animate();
 }
 
 /* ========================================================================

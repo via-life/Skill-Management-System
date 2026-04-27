@@ -262,6 +262,7 @@ tr:hover td { background: var(--bg-hover); }
     <span class="last-refresh" id="lastRefresh"></span>
     <button class="btn btn-sm" onclick="refreshData()" title="Refresh">&#8635;</button>
     <button class="btn btn-sm" onclick="toggleTheme()" id="themeBtn">&#9728;&#65039;</button>
+    <button class="btn btn-sm" onclick="toggleLang()" id="langBtn" title="Switch language">EN</button>
   </div>
 </nav>
 
@@ -269,16 +270,16 @@ tr:hover td { background: var(--bg-hover); }
 
   <!-- Stats Cards -->
   <div class="cards">
-    <div class="card"><div class="card-icon">&#128230;</div><div class="card-value" id="cardSkills">0</div><div class="card-label">Total Skills</div></div>
-    <div class="card"><div class="card-icon">&#128200;</div><div class="card-value" id="cardToday">0</div><div class="card-label">Today</div></div>
-    <div class="card"><div class="card-icon">&#128197;</div><div class="card-value" id="cardWeek">0</div><div class="card-label">This Week</div></div>
-    <div class="card"><div class="card-icon">&#127942;</div><div class="card-value" id="cardTop">-</div><div class="card-label">Most Used</div></div>
+    <div class="card"><div class="card-icon">&#128230;</div><div class="card-value" id="cardSkills">0</div><div class="card-label" data-i18n="totalSkills">Total Skills</div></div>
+    <div class="card"><div class="card-icon">&#128200;</div><div class="card-value" id="cardToday">0</div><div class="card-label" data-i18n="today">Today</div></div>
+    <div class="card"><div class="card-icon">&#128197;</div><div class="card-value" id="cardWeek">0</div><div class="card-label" data-i18n="thisWeek">This Week</div></div>
+    <div class="card"><div class="card-icon">&#127942;</div><div class="card-value" id="cardTop">-</div><div class="card-label" data-i18n="mostUsed">Most Used</div></div>
   </div>
 
   <!-- Chart -->
   <div class="section">
     <div class="section-header">
-      <h2>&#128202; Usage Overview</h2>
+      <h2>&#128202; <span data-i18n="usageOverview">Usage Overview</span></h2>
       <div class="chart-controls">
         <button class="chart-btn" onclick="setChartDays(7)" data-days="7">7d</button>
         <button class="chart-btn active" onclick="setChartDays(30)" data-days="30">30d</button>
@@ -291,10 +292,10 @@ tr:hover td { background: var(--bg-hover); }
   <!-- Skills Management -->
   <div class="section">
     <div class="section-header">
-      <h2>&#9881;&#65039; Skill Management</h2>
+      <h2>&#9881;&#65039; <span data-i18n="skillManagement">Skill Management</span></h2>
       <div class="section-actions">
-        <button class="btn btn-sm btn-primary" onclick="openSkillModal()">+ New Skill</button>
-        <button class="btn btn-sm" onclick="openGroupModal()">+ New Group</button>
+        <button class="btn btn-sm btn-primary" onclick="openSkillModal()"><span data-i18n="newSkill">+ New Skill</span></button>
+        <button class="btn btn-sm" onclick="openGroupModal()"><span data-i18n="newGroup">+ New Group</span></button>
       </div>
     </div>
     <div class="section-body" id="skillsBody"></div>
@@ -303,7 +304,7 @@ tr:hover td { background: var(--bg-hover); }
   <!-- Activity -->
   <div class="section collapsible open">
     <div class="section-header" onclick="toggleSection(this)">
-      <h2>&#128203; Recent Activity</h2>
+      <h2>&#128203; <span data-i18n="recentActivity">Recent Activity</span></h2>
     </div>
     <div class="section-body" id="activityBody"></div>
   </div>
@@ -311,9 +312,9 @@ tr:hover td { background: var(--bg-hover); }
   <!-- Trash -->
   <div class="section collapsible">
     <div class="section-header" onclick="toggleSection(this)">
-      <h2>&#128465;&#65039; Trash <span id="trashCount" style="font-weight:normal;font-size:0.82rem;color:var(--text-muted)"></span></h2>
+      <h2>&#128465;&#65039; <span data-i18n="trash">Trash</span> <span id="trashCount" style="font-weight:normal;font-size:0.82rem;color:var(--text-muted)"></span></h2>
       <div class="section-actions" onclick="event.stopPropagation()">
-        <button class="btn btn-sm btn-danger" onclick="clearTrash()">Clear All</button>
+        <button class="btn btn-sm btn-danger" onclick="clearTrash()" data-i18n="clearAll">Clear All</button>
       </div>
     </div>
     <div class="section-body" id="trashBody"></div>
@@ -322,7 +323,7 @@ tr:hover td { background: var(--bg-hover); }
   <!-- Operations -->
   <div class="section collapsible">
     <div class="section-header" onclick="toggleSection(this)">
-      <h2>&#128220; Operation History</h2>
+      <h2>&#128220; <span data-i18n="operationHistory">Operation History</span></h2>
     </div>
     <div class="section-body" id="opsBody"></div>
   </div>
@@ -334,18 +335,18 @@ tr:hover td { background: var(--bg-hover); }
 <!-- Skill Modal -->
 <div class="modal-overlay" id="skillModalOverlay" onclick="if(event.target===this)closeModal('skillModalOverlay')">
   <div class="modal" id="skillModal">
-    <div class="modal-header" id="skillModalTitle">New Skill</div>
+    <div class="modal-header" id="skillModalTitle" data-i18n="newSkillTitle">New Skill</div>
     <div class="modal-body">
-      <div class="form-group"><label>Name</label><input id="skName" placeholder="my-skill"></div>
-      <div class="form-group"><label>Display Name</label><input id="skDisplayName" placeholder="My Skill"></div>
-      <div class="form-group"><label>Description</label><textarea id="skDescription" rows="2"></textarea></div>
-      <div class="form-group"><label>Tags (comma separated)</label><input id="skTags" placeholder="utility, meta"></div>
-      <div class="form-group"><label>Group</label><select id="skGroup"></select></div>
-      <div class="form-group"><label><input type="checkbox" id="skEnabled" checked> Enabled</label></div>
+      <div class="form-group"><label data-i18n="name">Name</label><input id="skName" placeholder="my-skill"></div>
+      <div class="form-group"><label data-i18n="displayName">Display Name</label><input id="skDisplayName" placeholder="My Skill"></div>
+      <div class="form-group"><label data-i18n="description">Description</label><textarea id="skDescription" rows="2"></textarea></div>
+      <div class="form-group"><label data-i18n="tagsLabel">Tags (comma separated)</label><input id="skTags" placeholder="utility, meta"></div>
+      <div class="form-group"><label data-i18n="group">Group</label><select id="skGroup"></select></div>
+      <div class="form-group"><label><input type="checkbox" id="skEnabled" checked> <span data-i18n="enabled">Enabled</span></label></div>
     </div>
     <div class="modal-footer">
-      <button class="btn" onclick="closeModal('skillModalOverlay')">Cancel</button>
-      <button class="btn btn-primary" onclick="saveSkill()">Save</button>
+      <button class="btn" onclick="closeModal('skillModalOverlay')" data-i18n="cancel">Cancel</button>
+      <button class="btn btn-primary" onclick="saveSkill()" data-i18n="save">Save</button>
     </div>
   </div>
 </div>
@@ -353,15 +354,15 @@ tr:hover td { background: var(--bg-hover); }
 <!-- Group Modal -->
 <div class="modal-overlay" id="groupModalOverlay" onclick="if(event.target===this)closeModal('groupModalOverlay')">
   <div class="modal">
-    <div class="modal-header" id="groupModalTitle">New Group</div>
+    <div class="modal-header" id="groupModalTitle" data-i18n="newGroupTitle">New Group</div>
     <div class="modal-body">
-      <div class="form-group"><label>Name</label><input id="grName" placeholder="my-group"></div>
-      <div class="form-group"><label>Display Name</label><input id="grDisplayName" placeholder="My Group"></div>
-      <div class="form-group"><label>Color</label><input type="color" id="grColor" value="#6c63ff" style="height:36px"></div>
+      <div class="form-group"><label data-i18n="name">Name</label><input id="grName" placeholder="my-group"></div>
+      <div class="form-group"><label data-i18n="displayName">Display Name</label><input id="grDisplayName" placeholder="My Group"></div>
+      <div class="form-group"><label data-i18n="color">Color</label><input type="color" id="grColor" value="#6c63ff" style="height:36px"></div>
     </div>
     <div class="modal-footer">
-      <button class="btn" onclick="closeModal('groupModalOverlay')">Cancel</button>
-      <button class="btn btn-primary" onclick="saveGroup()">Save</button>
+      <button class="btn" onclick="closeModal('groupModalOverlay')" data-i18n="cancel">Cancel</button>
+      <button class="btn btn-primary" onclick="saveGroup()" data-i18n="save">Save</button>
     </div>
   </div>
 </div>
@@ -369,18 +370,18 @@ tr:hover td { background: var(--bg-hover); }
 <!-- Delete Confirm Modal -->
 <div class="modal-overlay" id="deleteModalOverlay" onclick="if(event.target===this)closeModal('deleteModalOverlay')">
   <div class="modal danger">
-    <div class="modal-header">&#128465;&#65039; Delete Skill</div>
+    <div class="modal-header">&#128465;&#65039; <span data-i18n="deleteSkill">Delete Skill</span></div>
     <div class="modal-body">
-      <p>About to delete: <strong id="delName"></strong></p>
+      <p><span data-i18n="aboutToDelete">About to delete:</span> <strong id="delName"></strong></p>
       <div class="warning-box">
-        &#9888;&#65039; This will move the following directory to trash (auto-cleared after 30 days):<br>
+        &#9888;&#65039; <span data-i18n="deleteWarning">This will move the following directory to trash (auto-cleared after 30 days):</span><br>
         <span class="path" id="delPath"></span><br><br>
-        Claude Code will NOT be able to use this Skill until restored.
+        <span data-i18n="deleteWarning2">Claude Code will NOT be able to use this Skill until restored.</span>
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn" onclick="closeModal('deleteModalOverlay')">Cancel</button>
-      <button class="btn btn-danger" onclick="confirmDelete()">Move to Trash</button>
+      <button class="btn" onclick="closeModal('deleteModalOverlay')" data-i18n="cancel">Cancel</button>
+      <button class="btn btn-danger" onclick="confirmDelete()" data-i18n="moveToTrash">Move to Trash</button>
     </div>
   </div>
 </div>
@@ -388,14 +389,14 @@ tr:hover td { background: var(--bg-hover); }
 <!-- Permanent Delete Modal -->
 <div class="modal-overlay" id="permDeleteModalOverlay" onclick="if(event.target===this)closeModal('permDeleteModalOverlay')">
   <div class="modal danger">
-    <div class="modal-header">&#9940; Permanently Delete</div>
+    <div class="modal-header">&#9940; <span data-i18n="permDelete">Permanently Delete</span></div>
     <div class="modal-body">
-      <p>This action is <strong>irreversible</strong>! All files will be permanently deleted.</p>
-      <div class="form-group"><label>Type the skill name to confirm:</label><input id="permDelInput" oninput="checkPermDelete()"></div>
+      <p><span data-i18n="permDeleteWarn">This action is <strong>irreversible</strong>! All files will be permanently deleted.</span></p>
+      <div class="form-group"><label data-i18n="typeNameConfirm">Type the skill name to confirm:</label><input id="permDelInput" oninput="checkPermDelete()"></div>
     </div>
     <div class="modal-footer">
-      <button class="btn" onclick="closeModal('permDeleteModalOverlay')">Cancel</button>
-      <button class="btn btn-danger" id="permDelBtn" disabled onclick="confirmPermDelete()">Permanently Delete</button>
+      <button class="btn" onclick="closeModal('permDeleteModalOverlay')" data-i18n="cancel">Cancel</button>
+      <button class="btn btn-danger" id="permDelBtn" disabled onclick="confirmPermDelete()" data-i18n="permDeleteBtn">Permanently Delete</button>
     </div>
   </div>
 </div>
@@ -425,6 +426,122 @@ tr:hover td { background: var(--bg-hover); }
 </div>
 
 <script>
+/* ========================================================================
+   i18n
+   ======================================================================== */
+const LANG = {
+  en: {
+    totalSkills:'Total Skills', today:'Today', thisWeek:'This Week', mostUsed:'Most Used',
+    usageOverview:'Usage Overview', skillManagement:'Skill Management',
+    newSkill:'+ New Skill', newGroup:'+ New Group',
+    recentActivity:'Recent Activity', trash:'Trash', clearAll:'Clear All',
+    operationHistory:'Operation History',
+    // Modal
+    newSkillTitle:'New Skill', editSkillTitle:'Edit Skill',
+    newGroupTitle:'New Group', editGroupTitle:'Edit Group',
+    name:'Name', displayName:'Display Name', description:'Description',
+    tagsLabel:'Tags (comma separated)', group:'Group', color:'Color',
+    enabled:'Enabled', cancel:'Cancel', save:'Save',
+    deleteSkill:'Delete Skill', aboutToDelete:'About to delete:',
+    deleteWarning:'This will move the following directory to trash (auto-cleared after 30 days):',
+    deleteWarning2:'Claude Code will NOT be able to use this Skill until restored.',
+    moveToTrash:'Move to Trash',
+    permDelete:'Permanently Delete', permDeleteBtn:'Permanently Delete',
+    permDeleteWarn:'This action is <strong>irreversible</strong>! All files will be permanently deleted.',
+    typeNameConfirm:'Type the skill name to confirm:',
+    // Dynamic
+    online:'Online', offline:'Offline', updated:'Updated',
+    noDataYet:'No usage data yet', noSkillsYet:'No skills yet',
+    noSkillsInGroup:'No skills in this group', noActivityYet:'No activity yet',
+    trashEmpty:'Trash is empty', noOpsYet:'No operations yet',
+    date:'Date', skill:'Skill', count:'Count',
+    restore:'Restore', undo:'Undo', irreversible:'irreversible',
+    page:'Page', close:'Close', back:'Back', loading:'Loading...',
+    emptyDir:'Empty directory', fileStructure:'File Structure',
+    // Toast messages
+    movedTo:"Moved '{0}' to '{1}'", skillCreated:'Skill created',
+    savedHistory:'Saved. Previous version recorded in history.',
+    movedToTrash:"'{0}' moved to trash", groupUpdated:'Group updated',
+    groupCreated:'Group created', groupDeleted:'Group deleted',
+    restored:"'{0}' restored", permDeleted:"'{0}' permanently deleted",
+    trashCleared:'Trash cleared', opUndone:'Operation undone',
+    nameRequired:'Name is required',
+    deleteGroupConfirm:'Delete group "{0}"? Skills will move to Ungrouped.',
+    clearTrashConfirm:'Permanently delete ALL items in trash? This cannot be undone.',
+    dLeft:'{0}d left',
+  },
+  zh: {
+    totalSkills:'技能总数', today:'今日', thisWeek:'本周', mostUsed:'最常用',
+    usageOverview:'使用量概览', skillManagement:'技能管理',
+    newSkill:'+ 新建技能', newGroup:'+ 新建分组',
+    recentActivity:'最近活动', trash:'回收站', clearAll:'清空',
+    operationHistory:'操作历史',
+    newSkillTitle:'新建技能', editSkillTitle:'编辑技能',
+    newGroupTitle:'新建分组', editGroupTitle:'编辑分组',
+    name:'名称', displayName:'显示名称', description:'描述',
+    tagsLabel:'标签（逗号分隔）', group:'分组', color:'颜色',
+    enabled:'启用', cancel:'取消', save:'保存',
+    deleteSkill:'删除技能', aboutToDelete:'即将删除：',
+    deleteWarning:'此操作将把以下目录移入回收站（30天后自动清除）：',
+    deleteWarning2:'Claude Code 将无法使用此技能，直到从回收站恢复为止。',
+    moveToTrash:'移入回收站',
+    permDelete:'永久删除', permDeleteBtn:'永久删除',
+    permDeleteWarn:'此操作<strong>不可撤销</strong>！所有文件将被永久删除。',
+    typeNameConfirm:'请输入技能名称以确认：',
+    online:'在线', offline:'离线', updated:'更新于',
+    noDataYet:'暂无使用数据', noSkillsYet:'暂无技能',
+    noSkillsInGroup:'此分组暂无技能', noActivityYet:'暂无活动记录',
+    trashEmpty:'回收站为空', noOpsYet:'暂无操作记录',
+    date:'日期', skill:'技能', count:'次数',
+    restore:'恢复', undo:'撤销', irreversible:'不可撤销',
+    page:'页', close:'关闭', back:'返回', loading:'加载中...',
+    emptyDir:'空目录', fileStructure:'文件结构',
+    movedTo:"已将 '{0}' 移至 '{1}'", skillCreated:'技能已创建',
+    savedHistory:'已保存，原版本已记录至操作历史。',
+    movedToTrash:"'{0}' 已移入回收站", groupUpdated:'分组已更新',
+    groupCreated:'分组已创建', groupDeleted:'分组已删除',
+    restored:"'{0}' 已恢复", permDeleted:"'{0}' 已永久删除",
+    trashCleared:'回收站已清空', opUndone:'操作已撤销',
+    nameRequired:'名称为必填项',
+    deleteGroupConfirm:'删除分组 "{0}"？组内技能将移至"未分组"。',
+    clearTrashConfirm:'永久删除回收站中所有项目？此操作不可撤销。',
+    dLeft:'剩余{0}天',
+  }
+};
+
+let currentLang = 'en';
+
+function t(key, ...args) {
+  let s = (LANG[currentLang] || LANG.en)[key] || (LANG.en)[key] || key;
+  args.forEach((a, i) => { s = s.replace(`{${i}}`, a); });
+  return s;
+}
+
+function applyLang() {
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    const val = t(key);
+    // Use innerHTML for keys that contain HTML (like permDeleteWarn)
+    if(val.includes('<strong>')) el.innerHTML = val;
+    else el.textContent = val;
+  });
+  document.getElementById('langBtn').textContent = currentLang === 'en' ? '中文' : 'EN';
+  document.documentElement.lang = currentLang === 'zh' ? 'zh-CN' : 'en';
+}
+
+function initLang() {
+  const saved = localStorage.getItem('lang');
+  if(saved && LANG[saved]) { currentLang = saved; }
+  applyLang();
+}
+
+function toggleLang() {
+  currentLang = currentLang === 'en' ? 'zh' : 'en';
+  localStorage.setItem('lang', currentLang);
+  applyLang();
+  refreshData(); // re-render dynamic content
+}
+
 /* ========================================================================
    State
    ======================================================================== */
@@ -466,7 +583,7 @@ function setOnline(v) {
   const dot = document.getElementById('statusDot');
   const txt = document.getElementById('statusText');
   dot.className = 'status-dot ' + (v ? 'online' : 'offline');
-  txt.textContent = v ? 'Online' : 'Offline';
+  txt.textContent = v ? t('online') : t('offline');
 }
 
 function showToast(msg, type='success') {
@@ -540,7 +657,7 @@ async function refreshData() {
     renderTrash(trashItems);
     renderOps(ops);
 
-    document.getElementById('lastRefresh').textContent = 'Updated ' + new Date().toLocaleTimeString();
+    document.getElementById('lastRefresh').textContent = t('updated') + ' ' + new Date().toLocaleTimeString();
   } catch(e) {
     console.error('Refresh failed:', e);
   }
@@ -565,7 +682,7 @@ function setChartDays(d) {
 
 function renderChart(summary) {
   const el = document.getElementById('chartBody');
-  if(!summary.length) { el.innerHTML = '<div class="chart-empty">No usage data yet</div>'; return; }
+  if(!summary.length) { el.innerHTML = '<div class="chart-empty">'+t('noDataYet')+'</div>'; return; }
   const top10 = summary.slice(0, 10);
   const max = top10[0].total_count || 1;
   // Assign colors from group
@@ -596,7 +713,7 @@ function renderSkills(skills, groups, summary) {
 
   // Sort groups by order
   const sorted = Object.values(groups).sort((a,b) => (a.order||0) - (b.order||0));
-  if(!sorted.length) { el.innerHTML = '<div class="empty-state">No skills yet</div>'; return; }
+  if(!sorted.length) { el.innerHTML = '<div class="empty-state">'+t('noSkillsYet')+'</div>'; return; }
 
   el.innerHTML = sorted.map(g => {
     const gSkills = (g.skills||[]).filter(s => s in skills);
@@ -614,7 +731,7 @@ function renderSkills(skills, groups, summary) {
         </div>
       </div>
       <div class="group-body">
-        ${gSkills.length === 0 ? '<div class="empty-state">No skills in this group</div>' :
+        ${gSkills.length === 0 ? '<div class="empty-state">'+t('noSkillsInGroup')+'</div>' :
           gSkills.map(sn => {
             const sk = skills[sn]||{};
             return `<div class="skill-row">
@@ -656,7 +773,7 @@ function toggleMoveMenu(btn, skillName) {
 async function moveSkillToGroup(skill, group) {
   try {
     await api(`/api/skills/${encodeURIComponent(skill)}/group`, {method:'PUT', body:JSON.stringify({group})});
-    showToast(`Moved '${skill}' to '${group}'`);
+    showToast(t('movedTo', skill, group));
     refreshData();
   } catch(e) { showToast(e.message, 'error'); }
 }
@@ -666,7 +783,7 @@ async function moveSkillToGroup(skill, group) {
    ======================================================================== */
 function openSkillModal() {
   editingSkill = null;
-  document.getElementById('skillModalTitle').textContent = 'New Skill';
+  document.getElementById('skillModalTitle').textContent = t('newSkillTitle');
   document.getElementById('skName').value = '';
   document.getElementById('skName').readOnly = false;
   document.getElementById('skDisplayName').value = '';
@@ -681,7 +798,7 @@ function openEditSkill(name) {
   editingSkill = name;
   api(`/api/skills/${encodeURIComponent(name)}`).then(data => {
     const sk = data.skill;
-    document.getElementById('skillModalTitle').textContent = 'Edit Skill';
+    document.getElementById('skillModalTitle').textContent = t('editSkillTitle');
     document.getElementById('skName').value = sk.name;
     document.getElementById('skName').readOnly = true;
     document.getElementById('skDisplayName').value = sk.display_name||'';
@@ -708,17 +825,16 @@ async function saveSkill() {
   const enabled = document.getElementById('skEnabled').checked;
   const group = document.getElementById('skGroup').value;
 
-  if(!name) { showToast('Name is required', 'error'); return; }
+  if(!name) { showToast(t('nameRequired'), 'error'); return; }
 
   try {
     if(editingSkill) {
       await api(`/api/skills/${encodeURIComponent(editingSkill)}`, {method:'PUT', body:JSON.stringify({display_name,description,tags,enabled})});
-      // Move group if changed
       if(group) await api(`/api/skills/${encodeURIComponent(editingSkill)}/group`, {method:'PUT', body:JSON.stringify({group})});
-      showToast('Saved. Previous version recorded in history.', 'warning');
+      showToast(t('savedHistory'), 'warning');
     } else {
       await api('/api/skills', {method:'POST', body:JSON.stringify({name,display_name,description,tags,enabled,group})});
-      showToast('Skill created');
+      showToast(t('skillCreated'));
     }
     closeModal('skillModalOverlay');
     refreshData();
@@ -742,7 +858,7 @@ async function confirmDelete() {
   if(!deletingSkill) return;
   try {
     await api(`/api/skills/${encodeURIComponent(deletingSkill)}`, {method:'DELETE'});
-    showToast(`'${deletingSkill}' moved to trash`);
+    showToast(t('movedToTrash', deletingSkill));
     closeModal('deleteModalOverlay');
     refreshData();
   } catch(e) { showToast(e.message, 'error'); }
@@ -753,7 +869,7 @@ async function confirmDelete() {
    ======================================================================== */
 function openGroupModal() {
   editingGroup = null;
-  document.getElementById('groupModalTitle').textContent = 'New Group';
+  document.getElementById('groupModalTitle').textContent = t('newGroupTitle');
   document.getElementById('grName').value = '';
   document.getElementById('grName').readOnly = false;
   document.getElementById('grDisplayName').value = '';
@@ -764,7 +880,7 @@ function openGroupModal() {
 function openEditGroup(name) {
   editingGroup = name;
   const g = cachedGroups[name] || {};
-  document.getElementById('groupModalTitle').textContent = 'Edit Group';
+  document.getElementById('groupModalTitle').textContent = t('editGroupTitle');
   document.getElementById('grName').value = g.name || name;
   document.getElementById('grName').readOnly = true;
   document.getElementById('grDisplayName').value = g.display_name || '';
@@ -780,10 +896,10 @@ async function saveGroup() {
   try {
     if(editingGroup) {
       await api(`/api/groups/${encodeURIComponent(editingGroup)}`, {method:'PUT', body:JSON.stringify({display_name,color})});
-      showToast('Group updated');
+      showToast(t('groupUpdated'));
     } else {
       await api('/api/groups', {method:'POST', body:JSON.stringify({name,display_name:display_name||name,color})});
-      showToast('Group created');
+      showToast(t('groupCreated'));
     }
     closeModal('groupModalOverlay');
     refreshData();
@@ -791,10 +907,10 @@ async function saveGroup() {
 }
 
 async function deleteGroup(name) {
-  if(!confirm(`Delete group "${name}"? Skills will move to Ungrouped.`)) return;
+  if(!confirm(t('deleteGroupConfirm', name))) return;
   try {
     await api(`/api/groups/${encodeURIComponent(name)}`, {method:'DELETE'});
-    showToast('Group deleted');
+    showToast(t('groupDeleted'));
     refreshData();
   } catch(e) { showToast(e.message, 'error'); }
 }
@@ -804,8 +920,8 @@ async function deleteGroup(name) {
    ======================================================================== */
 async function viewFiles(name) {
   currentFileTreeSkill = name;
-  document.getElementById('fileTreeTitle').textContent = '📂 ' + name;
-  document.getElementById('fileTreeContent').innerHTML = 'Loading...';
+  document.getElementById('fileTreeTitle').textContent = '📂 ' + name + ' ' + t('fileStructure');
+  document.getElementById('fileTreeContent').innerHTML = t('loading');
   document.getElementById('fileTreePath').textContent = '';
   openModal('fileTreeModalOverlay');
   try {
@@ -816,7 +932,7 @@ async function viewFiles(name) {
 }
 
 function renderTree(items, prefix) {
-  if(!items.length) return '<div class="empty-state">Empty directory</div>';
+  if(!items.length) return '<div class="empty-state">'+t('emptyDir')+'</div>';
   let html = '<ul>';
   for(const item of items) {
     if(item.type === 'dir') {
@@ -835,7 +951,7 @@ function renderTree(items, prefix) {
 async function viewFileContent(skill, path) {
   closeModal('fileTreeModalOverlay');
   document.getElementById('fileContentTitle').textContent = '📄 ' + path.split('/').pop();
-  document.getElementById('fileContentBody').textContent = 'Loading...';
+  document.getElementById('fileContentBody').textContent = t('loading');
   openModal('fileContentModalOverlay');
   try {
     const data = await api(`/api/skills/${encodeURIComponent(skill)}/files/${encodeURIComponent(path)}`);
@@ -848,9 +964,9 @@ async function viewFileContent(skill, path) {
    ======================================================================== */
 function renderActivity(stats) {
   const el = document.getElementById('activityBody');
-  if(!stats.length) { el.innerHTML = '<div class="empty-state">No activity yet</div>'; return; }
+  if(!stats.length) { el.innerHTML = '<div class="empty-state">'+t('noActivityYet')+'</div>'; return; }
   const sorted = [...stats].sort((a,b) => (b.date||'').localeCompare(a.date||''));
-  el.innerHTML = `<table><thead><tr><th>Date</th><th>Skill</th><th>Count</th></tr></thead><tbody>
+  el.innerHTML = `<table><thead><tr><th>${t('date')}</th><th>${t('skill')}</th><th>${t('count')}</th></tr></thead><tbody>
     ${sorted.slice(0,50).map(r => `<tr><td>${fmtDate(r.date)}</td><td>${esc(r.skill_name)}</td><td>${r.count}</td></tr>`).join('')}
   </tbody></table>`;
 }
@@ -861,7 +977,7 @@ function renderActivity(stats) {
 function renderTrash(items) {
   const el = document.getElementById('trashBody');
   document.getElementById('trashCount').textContent = items.length ? `(${items.length})` : '';
-  if(!items.length) { el.innerHTML = '<div class="empty-state">Trash is empty</div>'; return; }
+  if(!items.length) { el.innerHTML = '<div class="empty-state">'+t('trashEmpty')+'</div>'; return; }
   el.innerHTML = items.map(item => {
     const rem = item.remaining_days;
     const urgentCls = rem <= 5 ? 'urgent' : '';
@@ -869,9 +985,9 @@ function renderTrash(items) {
       <div><strong>${esc(item.name)}</strong></div>
       <div style="color:var(--text-muted);font-size:0.8rem">${esc(item.group||'')}</div>
       <div style="font-size:0.8rem;color:var(--text-muted)">${fmtTime(item.deleted_at)}</div>
-      <div class="remaining ${urgentCls}">${rem}d left</div>
+      <div class="remaining ${urgentCls}">${t('dLeft', rem)}</div>
       <div style="display:flex;gap:4px;justify-content:flex-end">
-        <button class="btn btn-sm" onclick="restoreTrash('${esc(item.name)}')">&#8617; Restore</button>
+        <button class="btn btn-sm" onclick="restoreTrash('${esc(item.name)}')">&#8617; ${t('restore')}</button>
         <button class="btn btn-sm btn-danger" onclick="permDelete('${esc(item.name)}')">&#9940;</button>
       </div>
     </div>`;
@@ -881,7 +997,7 @@ function renderTrash(items) {
 async function restoreTrash(name) {
   try {
     await api(`/api/trash/${encodeURIComponent(name)}/restore`, {method:'POST'});
-    showToast(`'${name}' restored`);
+    showToast(t('restored', name));
     refreshData();
   } catch(e) { showToast(e.message, 'error'); }
 }
@@ -902,17 +1018,17 @@ async function confirmPermDelete() {
   if(!permDeletingSkill) return;
   try {
     await api(`/api/trash/${encodeURIComponent(permDeletingSkill)}`, {method:'DELETE'});
-    showToast(`'${permDeletingSkill}' permanently deleted`);
+    showToast(t('permDeleted', permDeletingSkill));
     closeModal('permDeleteModalOverlay');
     refreshData();
   } catch(e) { showToast(e.message, 'error'); }
 }
 
 async function clearTrash() {
-  if(!confirm('Permanently delete ALL items in trash? This cannot be undone.')) return;
+  if(!confirm(t('clearTrashConfirm'))) return;
   try {
     await api('/api/trash', {method:'DELETE'});
-    showToast('Trash cleared');
+    showToast(t('trashCleared'));
     refreshData();
   } catch(e) { showToast(e.message, 'error'); }
 }
@@ -923,7 +1039,7 @@ async function clearTrash() {
 function renderOps(data) {
   const el = document.getElementById('opsBody');
   const ops = data.operations || [];
-  if(!ops.length) { el.innerHTML = '<div class="empty-state">No operations yet</div>'; return; }
+  if(!ops.length) { el.innerHTML = '<div class="empty-state">'+t('noOpsYet')+'</div>'; return; }
 
   let html = ops.map(op => {
     const undone = op.undone;
@@ -947,8 +1063,8 @@ function renderOps(data) {
         ${diff ? `<div class="op-diff">${esc(diff)}</div>` : ''}
       </div>
       <div class="op-actions">
-        ${canUndo ? `<button class="btn btn-sm" onclick="undoOp('${esc(op.id)}')">&#8617; Undo</button>` : ''}
-        ${op.action==='permanent_delete' ? '<span style="font-size:0.75rem;color:var(--text-muted)">irreversible</span>' : ''}
+        ${canUndo ? `<button class="btn btn-sm" onclick="undoOp('${esc(op.id)}')">&#8617; ${t('undo')}</button>` : ''}
+        ${op.action==='permanent_delete' ? '<span style="font-size:0.75rem;color:var(--text-muted)">'+t('irreversible')+'</span>' : ''}
       </div>
     </div>`;
   }).join('');
@@ -957,7 +1073,7 @@ function renderOps(data) {
   const totalPages = data.total_pages || 1;
   html += `<div class="pagination">
     <button class="btn btn-sm" ${opsPage<=1?'disabled':''} onclick="setOpsPage(${opsPage-1})">&#8592;</button>
-    <span style="font-size:0.82rem;color:var(--text-muted)">Page ${opsPage} / ${totalPages}</span>
+    <span style="font-size:0.82rem;color:var(--text-muted)">${t('page')} ${opsPage} / ${totalPages}</span>
     <button class="btn btn-sm" ${opsPage>=totalPages?'disabled':''} onclick="setOpsPage(${opsPage+1})">&#8594;</button>
   </div>`;
 
@@ -969,7 +1085,7 @@ function setOpsPage(p) { opsPage = p; refreshData(); }
 async function undoOp(id) {
   try {
     await api(`/api/operations/${encodeURIComponent(id)}/undo`, {method:'POST'});
-    showToast('Operation undone');
+    showToast(t('opUndone'));
     refreshData();
   } catch(e) { showToast(e.message, 'error'); }
 }
@@ -978,6 +1094,7 @@ async function undoOp(id) {
    Init
    ======================================================================== */
 initTheme();
+initLang();
 refreshData();
 startAutoRefresh();
 

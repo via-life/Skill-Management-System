@@ -1,0 +1,18 @@
+# Runtime data (user-specific)
+data/config.json
+data/stats.csv
+data/operation_log.json
+data/trash/
+
+# Logs
+logs/*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini

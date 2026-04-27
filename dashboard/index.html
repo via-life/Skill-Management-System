@@ -34,17 +34,61 @@ body {
   font-family: var(--font); background: var(--bg-page); color: var(--text-primary);
   line-height: 1.5; min-height: 100vh; transition: background var(--transition), color var(--transition);
 }
-/* ── Aurora background ──────────────────────────────────────────────── */
-body::before {
-  content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none;
-  background: radial-gradient(ellipse at 20% 50%, rgba(108,99,255,0.12) 0%, transparent 50%),
-              radial-gradient(ellipse at 80% 20%, rgba(63,185,80,0.07) 0%, transparent 50%),
-              radial-gradient(ellipse at 50% 80%, rgba(248,81,73,0.05) 0%, transparent 50%);
-  animation: aurora 20s ease-in-out infinite alternate;
+
+/* ── MagnetLines background ─────────────────────────────────────────── */
+#magnetBg {
+  position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  display: grid; justify-items: center; align-items: center;
+  grid-template-columns: repeat(var(--mg-cols, 20), 1fr);
+  grid-template-rows: repeat(var(--mg-rows, 12), 1fr);
 }
-[data-theme="light"] body::before,
-[data-theme="light"]::before { opacity: 0.5; }
-@keyframes aurora { 0% { filter: hue-rotate(0deg); } 100% { filter: hue-rotate(30deg); } }
+#magnetBg span {
+  display: block; width: 2px; height: 16px;
+  background: var(--accent); opacity: 0.12;
+  transform-origin: center; will-change: transform;
+  transform: rotate(var(--rotate, 0deg));
+  border-radius: 1px; transition: opacity 0.5s;
+}
+[data-theme="light"] #magnetBg span { opacity: 0.06; }
+
+/* ── Target Cursor ──────────────────────────────────────────────────── */
+.target-cursor-wrapper {
+  position: fixed; top: 0; left: 0; width: 0; height: 0;
+  pointer-events: none; z-index: 9999; mix-blend-mode: difference;
+}
+.target-cursor-dot {
+  position: absolute; left: 50%; top: 50%; width: 5px; height: 5px;
+  background: #fff; border-radius: 50%; transform: translate(-50%, -50%);
+  transition: width 0.2s, height 0.2s;
+}
+.target-cursor-corner {
+  position: absolute; left: 50%; top: 50%; width: 12px; height: 12px;
+  border: 2px solid #fff; will-change: transform;
+  transition: all 0.35s cubic-bezier(0.16,1,0.3,1);
+}
+.corner-tl { transform: translate(-150%, -150%); border-right: none; border-bottom: none; }
+.corner-tr { transform: translate(50%, -150%); border-left: none; border-bottom: none; }
+.corner-br { transform: translate(50%, 50%); border-left: none; border-top: none; }
+.corner-bl { transform: translate(-150%, 50%); border-right: none; border-top: none; }
+.target-cursor-wrapper.hovering .corner-tl { transform: translate(-120%, -120%); }
+.target-cursor-wrapper.hovering .corner-tr { transform: translate(20%, -120%); }
+.target-cursor-wrapper.hovering .corner-br { transform: translate(20%, 20%); }
+.target-cursor-wrapper.hovering .corner-bl { transform: translate(-120%, 20%); }
+.target-cursor-wrapper.hovering .target-cursor-dot { width: 6px; height: 6px; }
+
+/* ── Lanyard Canvas ─────────────────────────────────────────────────── */
+#lanyardCanvas {
+  position: fixed; top: 0; right: 24px; z-index: 150;
+  width: 60px; height: 200px; cursor: grab;
+}
+#lanyardCanvas:active { cursor: grabbing; }
+
+/* ── AnimatedList items ─────────────────────────────────────────────── */
+.animated-item {
+  opacity: 0; transform: scale(0.88) translateY(8px);
+  transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.16,1,0.3,1);
+}
+.animated-item.visible { opacity: 1; transform: scale(1) translateY(0); }
 
 /* ── Custom scrollbar ───────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 6px; }
@@ -299,6 +343,12 @@ tr:hover td { background: var(--bg-hover); }
 </style>
 </head>
 <body>
+
+<!-- MagnetLines Background -->
+<div id="magnetBg"></div>
+
+<!-- Lanyard Pull-to-Refresh -->
+<canvas id="lanyardCanvas" width="120" height="400"></canvas>
 
 <!-- Navbar -->
 <nav class="navbar">
@@ -1133,8 +1183,9 @@ function renderActivity(stats) {
   if(!stats.length) { el.innerHTML = '<div class="empty-state">'+t('noActivityYet')+'</div>'; return; }
   const sorted = [...stats].sort((a,b) => (b.date||'').localeCompare(a.date||''));
   el.innerHTML = `<table><thead><tr><th>${t('date')}</th><th>${t('skill')}</th><th>${t('count')}</th></tr></thead><tbody>
-    ${sorted.slice(0,50).map(r => `<tr><td>${fmtDate(r.date)}</td><td>${esc(r.skill_name)}</td><td>${r.count}</td></tr>`).join('')}
+    ${sorted.slice(0,50).map(r => `<tr class="animated-item"><td>${fmtDate(r.date)}</td><td>${esc(r.skill_name)}</td><td>${r.count}</td></tr>`).join('')}
   </tbody></table>`;
+  initAnimatedList();
 }
 
 /* ========================================================================
@@ -1147,7 +1198,7 @@ function renderTrash(items) {
   el.innerHTML = items.map(item => {
     const rem = item.remaining_days;
     const urgentCls = rem <= 5 ? 'urgent' : '';
-    return `<div class="trash-row">
+    return `<div class="trash-row animated-item">
       <div><strong>${esc(item.name)}</strong></div>
       <div style="color:var(--text-muted);font-size:0.8rem">${esc(item.group||'')}</div>
       <div style="font-size:0.8rem;color:var(--text-muted)">${fmtTime(item.deleted_at)}</div>
@@ -1158,6 +1209,7 @@ function renderTrash(items) {
       </div>
     </div>`;
   }).join('');
+  initAnimatedList();
 }
 
 async function restoreTrash(name) {
@@ -1221,7 +1273,7 @@ function renderOps(data) {
       }
       if(changes.length) diff = changes.slice(0,3).join('; ');
     }
-    return `<div class="op-row ${undone?'undone':''}">
+    return `<div class="op-row animated-item ${undone?'undone':''}">
       <div class="op-time">${fmtTime(op.timestamp)}</div>
       <div><span class="op-badge ${esc(badge)}">${esc(op.action)}</span></div>
       <div class="op-summary">
@@ -1244,6 +1296,7 @@ function renderOps(data) {
   </div>`;
 
   el.innerHTML = html;
+  initAnimatedList();
 }
 
 function setOpsPage(p) { opsPage = p; refreshData(); }
@@ -1551,11 +1604,219 @@ function viewFilesPath(dirPath, name) {
 }
 
 /* ========================================================================
+   MagnetLines Background
+   ======================================================================== */
+function initMagnetLines() {
+  const bg = document.getElementById('magnetBg');
+  if(!bg) return;
+  const cols = 20, rows = 12;
+  bg.style.setProperty('--mg-cols', cols);
+  bg.style.setProperty('--mg-rows', rows);
+  const spans = [];
+  for(let i = 0; i < cols * rows; i++) {
+    const s = document.createElement('span');
+    bg.appendChild(s);
+    spans.push(s);
+  }
+  // Init: point to center
+  const cx = window.innerWidth / 2, cy = window.innerHeight / 2;
+  updateMagnetLines(spans, cx, cy);
+
+  let ticking = false;
+  document.addEventListener('pointermove', e => {
+    if(ticking) return;
+    ticking = true;
+    requestAnimationFrame(() => {
+      updateMagnetLines(spans, e.clientX, e.clientY);
+      ticking = false;
+    });
+  });
+}
+function updateMagnetLines(spans, mx, my) {
+  for(const s of spans) {
+    const r = s.getBoundingClientRect();
+    const sx = r.left + r.width / 2, sy = r.top + r.height / 2;
+    const angle = Math.atan2(my - sy, mx - sx) * (180 / Math.PI) + 90;
+    s.style.setProperty('--rotate', angle + 'deg');
+  }
+}
+
+/* ========================================================================
+   Target Cursor
+   ======================================================================== */
+function initTargetCursor() {
+  const wrapper = document.getElementById('targetCursor');
+  if(!wrapper || 'ontouchstart' in window) { if(wrapper) wrapper.style.display='none'; return; }
+
+  let curX = 0, curY = 0, targetX = 0, targetY = 0;
+  const interactiveSelector = '.btn, .btn-icon, .btn-primary, .btn-danger, .card, a, button, input, select, textarea, .chart-btn, .skill-row, .group-header, .move-menu-item, .op-row, .trash-row, [onclick]';
+
+  document.addEventListener('mousemove', e => {
+    targetX = e.clientX; targetY = e.clientY;
+  });
+
+  function animateCursor() {
+    curX += (targetX - curX) * 0.15;
+    curY += (targetY - curY) * 0.15;
+    wrapper.style.transform = `translate(${curX}px, ${curY}px)`;
+    requestAnimationFrame(animateCursor);
+  }
+  animateCursor();
+
+  document.addEventListener('mouseover', e => {
+    if(e.target.closest(interactiveSelector)) {
+      wrapper.classList.add('hovering');
+    }
+  });
+  document.addEventListener('mouseout', e => {
+    if(e.target.closest(interactiveSelector)) {
+      wrapper.classList.remove('hovering');
+    }
+  });
+}
+
+/* ========================================================================
+   Lanyard Pull-to-Refresh (2D Verlet rope physics)
+   ======================================================================== */
+function initLanyard() {
+  const canvas = document.getElementById('lanyardCanvas');
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const segments = 12, segLen = 14;
+  const gravity = 0.4, damping = 0.98, iterations = 5;
+  const anchorX = W / 2, anchorY = 8;
+  const pullThreshold = 80;
+
+  // Verlet points: {x, y, ox, oy, pinned}
+  const points = [];
+  for(let i = 0; i <= segments; i++) {
+    points.push({ x: anchorX, y: anchorY + i * segLen, ox: anchorX, oy: anchorY + i * segLen, pinned: i === 0 });
+  }
+
+  let dragging = false, dragOffset = {x:0, y:0}, pullDist = 0;
+  const ballRadius = 8;
+  const lastPt = () => points[points.length - 1];
+
+  canvas.addEventListener('mousedown', e => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = (e.clientX - rect.left) * (W / rect.width);
+    const my = (e.clientY - rect.top) * (H / rect.height);
+    const lp = lastPt();
+    const dist = Math.hypot(mx - lp.x, my - lp.y);
+    if(dist < ballRadius + 15) {
+      dragging = true;
+      dragOffset.x = lp.x - mx;
+      dragOffset.y = lp.y - my;
+      canvas.style.cursor = 'grabbing';
+    }
+  });
+  document.addEventListener('mousemove', e => {
+    if(!dragging) return;
+    const rect = canvas.getBoundingClientRect();
+    const mx = (e.clientX - rect.left) * (W / rect.width);
+    const my = (e.clientY - rect.top) * (H / rect.height);
+    const lp = lastPt();
+    lp.x = mx + dragOffset.x;
+    lp.y = my + dragOffset.y;
+    lp.ox = lp.x; lp.oy = lp.y;
+  });
+  document.addEventListener('mouseup', () => {
+    if(!dragging) return;
+    dragging = false;
+    canvas.style.cursor = 'grab';
+    pullDist = lastPt().y - (anchorY + segments * segLen);
+    if(pullDist > pullThreshold) {
+      toggleTheme();
+    }
+  });
+
+  function simulate() {
+    for(const p of points) {
+      if(p.pinned) continue;
+      if(dragging && p === lastPt()) continue;
+      const vx = (p.x - p.ox) * damping;
+      const vy = (p.y - p.oy) * damping;
+      p.ox = p.x; p.oy = p.y;
+      p.x += vx; p.y += vy + gravity;
+    }
+    for(let iter = 0; iter < iterations; iter++) {
+      for(let i = 0; i < segments; i++) {
+        const a = points[i], b = points[i+1];
+        const dx = b.x - a.x, dy = b.y - a.y;
+        const dist = Math.sqrt(dx*dx + dy*dy) || 0.001;
+        const diff = (segLen - dist) / dist * 0.5;
+        const ox = dx * diff, oy = dy * diff;
+        if(!a.pinned) { a.x -= ox; a.y -= oy; }
+        if(!b.pinned && !(dragging && b === lastPt())) { b.x += ox; b.y += oy; }
+      }
+    }
+  }
+
+  function draw() {
+    const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+    ctx.clearRect(0, 0, W, H);
+
+    // Rope
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+    for(let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
+    ctx.strokeStyle = isDark ? 'rgba(108,99,255,0.6)' : 'rgba(90,82,213,0.5)';
+    ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.stroke();
+
+    // Anchor dot
+    ctx.beginPath(); ctx.arc(anchorX, anchorY, 3, 0, Math.PI*2);
+    ctx.fillStyle = isDark ? 'rgba(108,99,255,0.8)' : 'rgba(90,82,213,0.7)'; ctx.fill();
+
+    // Ball
+    const lp = lastPt();
+    ctx.beginPath(); ctx.arc(lp.x, lp.y, ballRadius, 0, Math.PI*2);
+    const grad = ctx.createRadialGradient(lp.x-2, lp.y-2, 1, lp.x, lp.y, ballRadius);
+    grad.addColorStop(0, isDark ? '#8b7fff' : '#7b6bef');
+    grad.addColorStop(1, isDark ? '#5a4fd4' : '#4a3fc4');
+    ctx.fillStyle = grad; ctx.fill();
+    ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)';
+    ctx.lineWidth = 1; ctx.stroke();
+
+    // Pull indicator
+    const currentPull = lp.y - (anchorY + segments * segLen);
+    if(dragging && currentPull > 20) {
+      const alpha = Math.min(currentPull / pullThreshold, 1) * 0.6;
+      ctx.fillStyle = `rgba(108,99,255,${alpha})`;
+      ctx.font = '10px sans-serif'; ctx.textAlign = 'center';
+      const icon = document.documentElement.getAttribute('data-theme') === 'dark' ? '☀' : '🌙';
+      ctx.fillText(icon, lp.x, lp.y + ballRadius + 14);
+    }
+  }
+
+  function loop() {
+    simulate(); draw();
+    requestAnimationFrame(loop);
+  }
+  loop();
+}
+
+/* ========================================================================
+   AnimatedList (IntersectionObserver)
+   ======================================================================== */
+let animListObserver = null;
+function initAnimatedList() {
+  if(animListObserver) animListObserver.disconnect();
+  animListObserver = new IntersectionObserver((entries) => {
+    entries.forEach(e => e.target.classList.toggle('visible', e.isIntersecting));
+  }, { threshold: 0.1 });
+  document.querySelectorAll('.animated-item').forEach(el => animListObserver.observe(el));
+}
+
+/* ========================================================================
    Init
    ======================================================================== */
 initTheme();
 initLang();
 initSpotlight();
+initMagnetLines();
+initTargetCursor();
+initLanyard();
 refreshData();
 startAutoRefresh();
 
@@ -1566,5 +1827,15 @@ document.addEventListener('click', (e) => {
   }
 });
 </script>
+
+<!-- Target Cursor -->
+<div id="targetCursor" class="target-cursor-wrapper">
+  <div class="target-cursor-dot"></div>
+  <div class="target-cursor-corner corner-tl"></div>
+  <div class="target-cursor-corner corner-tr"></div>
+  <div class="target-cursor-corner corner-br"></div>
+  <div class="target-cursor-corner corner-bl"></div>
+</div>
+
 </body>
 </html>

@@ -34,6 +34,23 @@ body {
   font-family: var(--font); background: var(--bg-page); color: var(--text-primary);
   line-height: 1.5; min-height: 100vh; transition: background var(--transition), color var(--transition);
 }
+/* ── Aurora background ──────────────────────────────────────────────── */
+body::before {
+  content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: radial-gradient(ellipse at 20% 50%, rgba(108,99,255,0.12) 0%, transparent 50%),
+              radial-gradient(ellipse at 80% 20%, rgba(63,185,80,0.07) 0%, transparent 50%),
+              radial-gradient(ellipse at 50% 80%, rgba(248,81,73,0.05) 0%, transparent 50%);
+  animation: aurora 20s ease-in-out infinite alternate;
+}
+[data-theme="light"] body::before,
+[data-theme="light"]::before { opacity: 0.5; }
+@keyframes aurora { 0% { filter: hue-rotate(0deg); } 100% { filter: hue-rotate(30deg); } }
+
+/* ── Custom scrollbar ───────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent); }
 
 /* ========================================================================
    Layout
@@ -43,10 +60,17 @@ body {
 /* ── Navbar ───────────────────────────────────────────────────────────── */
 .navbar {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 16px 24px; background: var(--bg-card); border-bottom: 1px solid var(--border);
-  position: sticky; top: 0; z-index: 100; backdrop-filter: blur(8px);
+  padding: 16px 24px; background: rgba(13,17,23,0.7); border-bottom: 1px solid rgba(255,255,255,0.06);
+  position: sticky; top: 0; z-index: 100; backdrop-filter: blur(16px) saturate(180%);
 }
+[data-theme="light"] .navbar { background: rgba(246,248,250,0.8); border-bottom-color: var(--border); }
 .navbar-brand { display: flex; align-items: center; gap: 10px; font-size: 1.1rem; font-weight: 600; }
+.shiny-text {
+  background: linear-gradient(90deg, var(--text-primary) 0%, var(--accent) 45%, #fff 50%, var(--accent) 55%, var(--text-primary) 100%);
+  background-size: 250% 100%; -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; animation: shiny 5s linear infinite;
+}
+@keyframes shiny { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 .navbar-actions { display: flex; align-items: center; gap: 12px; }
 .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 .status-dot.online { background: var(--success); }
@@ -61,7 +85,7 @@ body {
   font-size: 0.82rem; font-family: var(--font); background: var(--bg-card);
   color: var(--text-primary); transition: all var(--transition);
 }
-.btn:hover { background: var(--bg-hover); border-color: var(--accent); }
+.btn:hover { background: var(--bg-hover); border-color: var(--accent); transform: translateY(-1px); box-shadow: 0 2px 8px rgba(108,99,255,0.15); }
 .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
 .btn-primary:hover { background: var(--accent-hover); }
 .btn-danger { color: var(--danger); border-color: var(--danger); }
@@ -75,18 +99,27 @@ body {
 .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin: 24px 0; }
 .card {
   background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
-  padding: 20px; transition: border-color var(--transition), box-shadow var(--transition);
+  padding: 20px; transition: border-color var(--transition), box-shadow var(--transition), transform var(--transition);
+  position: relative; overflow: hidden;
 }
-.card:hover { border-color: var(--accent); box-shadow: var(--shadow); }
-.card-value { font-size: 1.8rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.card::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: var(--radius);
+  background: radial-gradient(circle at var(--mx, 50%) var(--my, 50%), rgba(108,99,255,0.12), transparent 60%);
+  opacity: 0; transition: opacity 0.3s;
+}
+.card:hover::after { opacity: 1; }
+.card:hover { border-color: var(--accent); box-shadow: 0 4px 24px rgba(108,99,255,0.12); transform: translateY(-2px); }
+.card-value { font-size: 1.8rem; font-weight: 700; font-variant-numeric: tabular-nums; position: relative; z-index: 1; }
 .card-label { font-size: 0.82rem; color: var(--text-muted); margin-top: 4px; }
 .card-icon { font-size: 1.2rem; margin-bottom: 8px; }
 
 /* ── Section ──────────────────────────────────────────────────────────── */
 .section {
-  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+  background: rgba(22,27,34,0.6); backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.06); border-radius: var(--radius);
   margin-bottom: 20px; overflow: hidden;
 }
+[data-theme="light"] .section { background: rgba(255,255,255,0.7); border-color: var(--border); }
 .section-header {
   display: flex; align-items: center; justify-content: space-between;
   padding: 16px 20px; border-bottom: 1px solid var(--border); cursor: default;
@@ -96,24 +129,32 @@ body {
 .section-actions { display: flex; gap: 8px; }
 
 .collapsible .section-header { cursor: pointer; user-select: none; }
-.collapsible .section-header::after { content: ''; display: inline-block; width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 6px solid var(--text-muted); transition: transform var(--transition); margin-left: 8px; }
+.collapsible .section-header::after { content: ''; display: inline-block; width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 6px solid var(--text-muted); transition: transform 0.3s cubic-bezier(0.16,1,0.3,1); margin-left: 8px; }
 .collapsible.open .section-header::after { transform: rotate(180deg); }
-.collapsible .section-body { display: none; }
-.collapsible.open .section-body { display: block; }
+.collapsible .section-body { max-height: 0; overflow: hidden; opacity: 0; padding: 0 20px; transition: max-height 0.4s cubic-bezier(0.16,1,0.3,1), opacity 0.3s ease, padding 0.3s ease; }
+.collapsible.open .section-body { max-height: 2000px; opacity: 1; padding: 20px; }
 
 /* ── Bar chart ────────────────────────────────────────────────────────── */
 .chart-controls { display: flex; gap: 4px; }
-.chart-btn { padding: 4px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-page); color: var(--text-muted); cursor: pointer; font-size: 0.78rem; }
-.chart-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.chart-btn { padding: 4px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-page); color: var(--text-muted); cursor: pointer; font-size: 0.78rem; transition: all var(--transition); }
+.chart-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); box-shadow: 0 0 12px rgba(108,99,255,0.3); }
 .bar-row { display: grid; grid-template-columns: 150px 1fr 55px; align-items: center; gap: 12px; margin-bottom: 10px; }
 .bar-label { font-size: 0.82rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: default; }
 .bar-track { background: var(--bar-bg); border-radius: 4px; height: 24px; overflow: hidden; }
-.bar-fill { width: var(--pct, 0%); height: 100%; border-radius: 4px; transition: width 0.6s cubic-bezier(0.4,0,0.2,1); }
+.bar-fill {
+  width: 0; height: 100%; border-radius: 4px;
+  animation: barGrow 0.8s cubic-bezier(0.16,1,0.3,1) forwards;
+  animation-delay: var(--delay, 0s);
+  transition: box-shadow 0.3s;
+}
+.bar-fill:hover { box-shadow: 0 0 14px rgba(108,99,255,0.4); }
+@keyframes barGrow { to { width: var(--pct, 0%); } }
 .bar-count { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; font-size: 0.9rem; }
 .chart-empty { text-align: center; padding: 30px; color: var(--text-muted); }
 
 /* ── Groups & Skills table ────────────────────────────────────────────── */
-.group-block { border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 12px; overflow: hidden; }
+.group-block { border: 1px solid rgba(255,255,255,0.06); border-radius: var(--radius-sm); margin-bottom: 12px; overflow: hidden; background: rgba(22,27,34,0.4); backdrop-filter: blur(8px); }
+[data-theme="light"] .group-block { background: rgba(255,255,255,0.5); border-color: var(--border); }
 .group-header {
   display: flex; align-items: center; justify-content: space-between;
   padding: 10px 16px; background: var(--bg-page); cursor: pointer; user-select: none;
@@ -131,9 +172,10 @@ body {
 .skill-row {
   display: grid; grid-template-columns: 1fr 1fr 60px auto; align-items: center;
   padding: 10px 16px; border-top: 1px solid var(--border); font-size: 0.85rem;
-  transition: background var(--transition);
+  transition: background var(--transition), border-left-color 0.3s;
+  border-left: 3px solid transparent;
 }
-.skill-row:hover { background: var(--bg-hover); }
+.skill-row:hover { background: var(--bg-hover); border-left-color: var(--accent); }
 .skill-name { font-weight: 500; }
 .skill-display { color: var(--text-muted); }
 .skill-count { font-variant-numeric: tabular-nums; text-align: right; color: var(--text-muted); }
@@ -173,15 +215,20 @@ tr:hover td { background: var(--bg-hover); }
 
 /* ── Modal ────────────────────────────────────────────────────────────── */
 .modal-overlay {
-  display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5);
   z-index: 200; align-items: center; justify-content: center;
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(8px); opacity: 0; transition: opacity 0.3s ease;
 }
-.modal-overlay.active { display: flex; }
+.modal-overlay.active { display: flex; opacity: 1; }
 .modal {
   background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
   width: 90%; max-width: 560px; max-height: 85vh; overflow-y: auto;
   box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  transform: scale(0.92) translateY(10px); opacity: 0; filter: blur(4px);
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.modal-overlay.active .modal {
+  transform: scale(1) translateY(0); opacity: 1; filter: blur(0);
 }
 .modal-header { padding: 20px 24px 12px; font-size: 1.05rem; font-weight: 600; display: flex; align-items: center; gap: 8px; }
 .modal-body { padding: 0 24px 20px; }
@@ -222,13 +269,13 @@ tr:hover td { background: var(--bg-hover); }
 .toast-container { position: fixed; top: 80px; right: 24px; z-index: 300; display: flex; flex-direction: column; gap: 8px; }
 .toast {
   padding: 10px 18px; border-radius: var(--radius-sm); font-size: 0.85rem;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.3); animation: slideIn 0.3s ease;
-  display: flex; align-items: center; gap: 8px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3); animation: toastIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  display: flex; align-items: center; gap: 8px; backdrop-filter: blur(8px);
 }
-.toast.success { background: var(--success); color: #fff; }
-.toast.warning { background: var(--warning); color: #fff; }
-.toast.error { background: var(--danger); color: #fff; }
-@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+.toast.success { background: rgba(63,185,80,0.9); color: #fff; }
+.toast.warning { background: rgba(210,153,34,0.9); color: #fff; }
+.toast.error { background: rgba(248,81,73,0.9); color: #fff; }
+@keyframes toastIn { from { transform: translateX(120%) scale(0.8); opacity: 0; } to { transform: translateX(0) scale(1); opacity: 1; } }
 
 /* ── Move-to dropdown ─────────────────────────────────────────────────── */
 .move-dropdown { position: relative; display: inline-block; }
@@ -255,7 +302,7 @@ tr:hover td { background: var(--bg-hover); }
 
 <!-- Navbar -->
 <nav class="navbar">
-  <div class="navbar-brand">&#127919; Skill Management System</div>
+  <div class="navbar-brand">&#127919; <span class="shiny-text">Skill Management System</span></div>
   <div class="navbar-actions">
     <span class="status-dot online" id="statusDot"></span>
     <span class="status-text" id="statusText">Online</span>
@@ -270,10 +317,10 @@ tr:hover td { background: var(--bg-hover); }
 
   <!-- Stats Cards -->
   <div class="cards">
-    <div class="card"><div class="card-icon">&#128230;</div><div class="card-value" id="cardSkills">0</div><div class="card-label" data-i18n="totalSkills">Total Skills</div></div>
-    <div class="card"><div class="card-icon">&#128200;</div><div class="card-value" id="cardToday">0</div><div class="card-label" data-i18n="today">Today</div></div>
-    <div class="card"><div class="card-icon">&#128197;</div><div class="card-value" id="cardWeek">0</div><div class="card-label" data-i18n="thisWeek">This Week</div></div>
-    <div class="card"><div class="card-icon">&#127942;</div><div class="card-value" id="cardTop">-</div><div class="card-label" data-i18n="mostUsed">Most Used</div></div>
+    <div class="card spotlight-card"><div class="card-icon">&#128230;</div><div class="card-value" id="cardSkills">0</div><div class="card-label" data-i18n="totalSkills">Total Skills</div></div>
+    <div class="card spotlight-card"><div class="card-icon">&#128200;</div><div class="card-value" id="cardToday">0</div><div class="card-label" data-i18n="today">Today</div></div>
+    <div class="card spotlight-card"><div class="card-icon">&#128197;</div><div class="card-value" id="cardWeek">0</div><div class="card-label" data-i18n="thisWeek">This Week</div></div>
+    <div class="card spotlight-card"><div class="card-icon">&#127942;</div><div class="card-value" id="cardTop">-</div><div class="card-label" data-i18n="mostUsed">Most Used</div></div>
   </div>
 
   <!-- Chart -->
@@ -426,6 +473,37 @@ tr:hover td { background: var(--bg-hover); }
 </div>
 
 <script>
+/* ========================================================================
+   Spotlight Cards (mouse-follow light)
+   ======================================================================== */
+function initSpotlight() {
+  document.querySelectorAll('.spotlight-card').forEach(card => {
+    card.addEventListener('mousemove', e => {
+      const rect = card.getBoundingClientRect();
+      card.style.setProperty('--mx', ((e.clientX - rect.left) / rect.width * 100) + '%');
+      card.style.setProperty('--my', ((e.clientY - rect.top) / rect.height * 100) + '%');
+    });
+  });
+}
+
+/* ========================================================================
+   CountUp animation
+   ======================================================================== */
+function animateCountUp(el, target, duration = 800) {
+  if(typeof target !== 'number' || isNaN(target)) { el.textContent = target; return; }
+  const start = parseInt(el.textContent) || 0;
+  if(start === target) return;
+  const startTime = performance.now();
+  function tick(now) {
+    const elapsed = now - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+    el.textContent = Math.round(start + (target - start) * eased);
+    if(progress < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
 /* ========================================================================
    i18n
    ======================================================================== */
@@ -646,9 +724,9 @@ async function refreshData() {
     const weekTotal = weekStats.reduce((s,r) => s + (r.count||0), 0);
     const topSkill = cachedSummary.length > 0 ? cachedSummary[0].skill_name : '-';
 
-    document.getElementById('cardSkills').textContent = Object.keys(skills).length;
-    document.getElementById('cardToday').textContent = todayTotal;
-    document.getElementById('cardWeek').textContent = weekTotal;
+    animateCountUp(document.getElementById('cardSkills'), Object.keys(skills).length);
+    animateCountUp(document.getElementById('cardToday'), todayTotal);
+    animateCountUp(document.getElementById('cardWeek'), weekTotal);
     document.getElementById('cardTop').textContent = topSkill;
 
     renderChart(cachedSummary);
@@ -686,11 +764,11 @@ function renderChart(summary) {
   const top10 = summary.slice(0, 10);
   const max = top10[0].total_count || 1;
   // Assign colors from group
-  el.innerHTML = top10.map(item => {
+  el.innerHTML = top10.map((item, i) => {
     const color = getSkillColor(item.skill_name);
     return `<div class="bar-row">
       <div class="bar-label" title="${esc(item.skill_name)}">${esc(item.skill_name)}</div>
-      <div class="bar-track"><div class="bar-fill" style="--pct:${(item.total_count/max*100).toFixed(1)}%;background:${color}"></div></div>
+      <div class="bar-track"><div class="bar-fill" style="--pct:${(item.total_count/max*100).toFixed(1)}%;background:${color};--delay:${i*0.08}s"></div></div>
       <div class="bar-count">${item.total_count}</div>
     </div>`;
   }).join('');
@@ -1095,6 +1173,7 @@ async function undoOp(id) {
    ======================================================================== */
 initTheme();
 initLang();
+initSpotlight();
 refreshData();
 startAutoRefresh();
 

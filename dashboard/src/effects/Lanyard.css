@@ -1,15 +1,17 @@
 .lanyard-wrapper {
   position: fixed;
   top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
+  right: 0;
+  width: 33vw;
+  height: 50vh;
   z-index: 150;
   pointer-events: none;
+  overflow: visible;
 }
 .lanyard-wrapper canvas {
   pointer-events: auto;
   cursor: grab;
+  overflow: visible;
 }
 .lanyard-wrapper canvas:active {
   cursor: grabbing;

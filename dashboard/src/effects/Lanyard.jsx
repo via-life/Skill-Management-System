@@ -91,6 +91,26 @@ function Band({ maxSpeed = 50, minSpeed = 0, isMobile = false }) {
   const [dragged, drag] = useState(false);
   const [hovered, hover] = useState(false);
   const dragStartY = useRef(0);
+  const isDragging = useRef(false);
+
+  // Global pointerup listener — works even when pointer leaves the card mesh
+  useEffect(() => {
+    const handleUp = () => {
+      if (!isDragging.current) return;
+      isDragging.current = false;
+      if (card.current) {
+        const currentY = card.current.translation().y;
+        const pullDistance = dragStartY.current - currentY;
+        if (Math.abs(pullDistance) > 0.5) {
+          window.__toggleTheme && window.__toggleTheme();
+        }
+      }
+      drag(false);
+      document.body.style.cursor = 'auto';
+    };
+    window.addEventListener('pointerup', handleUp);
+    return () => window.removeEventListener('pointerup', handleUp);
+  }, []);
 
   useRopeJoint(fixed, j1, [[0, 0, 0], [0, 0, 0], 1]);
   useRopeJoint(j1, j2, [[0, 0, 0], [0, 0, 0], 1]);
@@ -160,21 +180,13 @@ function Band({ maxSpeed = 50, minSpeed = 0, isMobile = false }) {
             onPointerOut={() => hover(false)}
             onPointerUp={e => {
               e.target.releasePointerCapture(e.pointerId);
-              if (dragged && card.current) {
-                const currentY = card.current.translation().y;
-                const pullDistance = dragStartY.current - currentY;
-                // Any significant drag triggers theme toggle
-                if (Math.abs(pullDistance) > 0.8) {
-                  window.__toggleTheme && window.__toggleTheme();
-                }
-              }
-              drag(false);
             }}
             onPointerDown={e => {
               e.target.setPointerCapture(e.pointerId);
               if (card.current) {
                 dragStartY.current = card.current.translation().y;
               }
+              isDragging.current = true;
               drag(new THREE.Vector3().copy(e.point).sub(vec.copy(card.current.translation())));
             }}
           >

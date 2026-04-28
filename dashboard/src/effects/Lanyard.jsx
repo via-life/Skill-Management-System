@@ -163,7 +163,8 @@ function Band({ maxSpeed = 50, minSpeed = 0, isMobile = false }) {
               if (dragged && card.current) {
                 const currentY = card.current.translation().y;
                 const pullDistance = dragStartY.current - currentY;
-                if (pullDistance > 1.5) {
+                // Any significant drag triggers theme toggle
+                if (Math.abs(pullDistance) > 0.8) {
                   window.__toggleTheme && window.__toggleTheme();
                 }
               }

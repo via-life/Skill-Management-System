@@ -1,9 +1,9 @@
 .lanyard-wrapper {
   position: fixed;
   top: 0;
-  right: 0;
-  width: 33vw;
-  height: 50vh;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
   z-index: 150;
   pointer-events: none;
   overflow: visible;

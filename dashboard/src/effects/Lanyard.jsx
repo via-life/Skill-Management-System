@@ -90,6 +90,7 @@ function Band({ maxSpeed = 50, minSpeed = 0, isMobile = false }) {
   );
   const [dragged, drag] = useState(false);
   const [hovered, hover] = useState(false);
+  const dragStartY = useRef(0);
 
   useRopeJoint(fixed, j1, [[0, 0, 0], [0, 0, 0], 1]);
   useRopeJoint(j1, j2, [[0, 0, 0], [0, 0, 0], 1]);
@@ -159,19 +160,22 @@ function Band({ maxSpeed = 50, minSpeed = 0, isMobile = false }) {
             onPointerOut={() => hover(false)}
             onPointerUp={e => {
               e.target.releasePointerCapture(e.pointerId);
-              // Check if card was dragged down enough to trigger theme toggle
               if (dragged && card.current) {
-                const pos = card.current.translation();
-                if (pos.y < -2) {
+                const currentY = card.current.translation().y;
+                const pullDistance = dragStartY.current - currentY;
+                if (pullDistance > 1.5) {
                   window.__toggleTheme && window.__toggleTheme();
                 }
               }
               drag(false);
             }}
-            onPointerDown={e => (
-              e.target.setPointerCapture(e.pointerId),
-              drag(new THREE.Vector3().copy(e.point).sub(vec.copy(card.current.translation())))
-            )}
+            onPointerDown={e => {
+              e.target.setPointerCapture(e.pointerId);
+              if (card.current) {
+                dragStartY.current = card.current.translation().y;
+              }
+              drag(new THREE.Vector3().copy(e.point).sub(vec.copy(card.current.translation())));
+            }}
           >
             <mesh geometry={nodes.card.geometry}>
               <meshPhysicalMaterial

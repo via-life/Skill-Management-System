@@ -1,9 +1,9 @@
 .lanyard-wrapper {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
+  top: 56px;          /* navbar height ~56px, anchor at its bottom edge */
+  right: 100px;       /* align with navbar-actions area */
+  width: 400px;
+  height: calc(100vh - 56px);
   z-index: 150;
   pointer-events: none;
   overflow: visible;
@@ -11,7 +11,6 @@
 .lanyard-wrapper canvas {
   pointer-events: auto;
   cursor: grab;
-  overflow: visible;
 }
 .lanyard-wrapper canvas:active {
   cursor: grabbing;

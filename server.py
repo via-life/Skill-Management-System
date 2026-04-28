@@ -29,6 +29,7 @@ STATS_FILE = DATA_DIR / "stats.csv"
 OPLOG_FILE = DATA_DIR / "operation_log.json"
 TRASH_DIR = DATA_DIR / "trash"
 DASHBOARD_FILE = PROJECT_ROOT / "dashboard" / "index.html"
+DASHBOARD_DIST = PROJECT_ROOT / "dashboard" / "dist"
 LOG_FILE = PROJECT_ROOT / "logs" / "server.log"
 
 MAX_OPERATIONS = 500
@@ -537,6 +538,10 @@ class SkillHandler(BaseHTTPRequestHandler):
         if path == "/api/stats/trend":
             return self._handle_get_stats_trend(params)
 
+        # Static files from dashboard/dist/ (Vite build output)
+        if not path.startswith("/api/"):
+            return self._serve_static(path.lstrip("/"))
+
         self._send_error("Not found", 404)
 
     def do_POST(self):
@@ -624,14 +629,48 @@ class SkillHandler(BaseHTTPRequestHandler):
     # -- Static --
 
     def _serve_html(self):
-        if not DASHBOARD_FILE.exists():
-            self._send_error("Dashboard not found", 404)
+        # Try Vite dist/ first, fallback to legacy index.html
+        dist_index = DASHBOARD_DIST / "index.html"
+        target = dist_index if dist_index.exists() else DASHBOARD_FILE
+        if not target.exists():
+            self._send_error("Dashboard not found. Run: cd dashboard && npm run build", 404)
             return
-        body = DASHBOARD_FILE.read_bytes()
+        body = target.read_bytes()
         self.send_response(200)
         self._cors_headers()
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-cache")
+        self.end_headers()
+        self.wfile.write(body)
+
+    MIME_TYPES = {
+        '.html': 'text/html', '.css': 'text/css', '.js': 'application/javascript',
+        '.mjs': 'application/javascript', '.json': 'application/json',
+        '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml',
+        '.glb': 'model/gltf-binary', '.wasm': 'application/wasm',
+        '.ico': 'image/x-icon', '.woff': 'font/woff', '.woff2': 'font/woff2',
+    }
+
+    def _serve_static(self, file_path):
+        """Serve a static file from dashboard/dist/."""
+        full_path = (DASHBOARD_DIST / file_path).resolve()
+        # Security: must be within dist/
+        if not str(full_path).startswith(str(DASHBOARD_DIST.resolve())):
+            self._send_error("Access denied", 403)
+            return
+        if not full_path.exists() or not full_path.is_file():
+            # SPA fallback: serve index.html for non-API, non-asset routes
+            return self._serve_html()
+        body = full_path.read_bytes()
+        ext = full_path.suffix.lower()
+        mime = self.MIME_TYPES.get(ext, 'application/octet-stream')
+        self.send_response(200)
+        self._cors_headers()
+        self.send_header("Content-Type", mime)
+        self.send_header("Content-Length", str(len(body)))
+        if ext in ('.js', '.css', '.woff2', '.glb', '.wasm'):
+            self.send_header("Cache-Control", "public, max-age=31536000, immutable")
         self.end_headers()
         self.wfile.write(body)
 
